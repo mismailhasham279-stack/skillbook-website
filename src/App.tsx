@@ -29,7 +29,9 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortBy, setSortBy] = useState<SortOption>("featured");
   const [maxPrice, setMaxPrice] = useState<number>(300000);
-  const [cartCount, setCartCount] = useState<number>(0);
+  const [cartItems, setCartItems] = useState<{ laptop: ShopLaptop; qty: number }[]>([]);
+  const cartCount = cartItems.reduce((sum, item) => sum + item.qty, 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + item.qty * item.laptop.price, 0);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState<boolean>(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
@@ -67,7 +69,7 @@ export default function App() {
   // WhatsApp Order Trigger with exact product details
   const handleWhatsAppOrder = (laptop: ShopLaptop) => {
     const phone = "923368936528";
-    const text = `Assalam-o-Alaikum SKILLBOOK PK,\n\nI want to order this laptop:\n*Model:* ${laptop.title}\n*SKU:* ${laptop.sku}\n*Processor:* ${laptop.processor}\n*RAM/SSD:* ${laptop.ram} / ${laptop.storage}\n*Display:* ${laptop.display}\n*Price:* Rs ${laptop.price.toLocaleString()}\n*Condition:* ${laptop.condition}\n\nPlease confirm stock availability and dispatch procedure.`;
+    const text = `Assalam-o-Alaikum SKILLBOOK,\n\nI want to order this laptop:\n*Model:* ${laptop.title}\n*SKU:* ${laptop.sku}\n*Processor:* ${laptop.processor}\n*RAM/SSD:* ${laptop.ram} / ${laptop.storage}\n*Display:* ${laptop.display}\n*Price:* Rs ${laptop.price.toLocaleString()}\n*Condition:* ${laptop.condition}\n\nPlease confirm stock availability and dispatch procedure.`;
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank");
   };
 
@@ -77,6 +79,28 @@ export default function App() {
     setMaxPrice(300000);
     setSearchQuery("");
     setSortBy("featured");
+  };
+
+  const addToCart = (laptop: ShopLaptop) => {
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.laptop.id === laptop.id);
+      if (existing) return prev.map((item) => item.laptop.id === laptop.id ? { ...item, qty: item.qty + 1 } : item);
+      return [...prev, { laptop, qty: 1 }];
+    });
+  };
+
+  const updateCartQty = (id: string, delta: number) => {
+    setCartItems((prev) => prev.map((item) => item.laptop.id === id ? { ...item, qty: item.qty + delta } : item).filter((item) => item.qty > 0));
+  };
+
+  const removeFromCart = (id: string) => {
+    setCartItems((prev) => prev.filter((item) => item.laptop.id !== id));
+  };
+
+  const handleCartWhatsAppCheckout = () => {
+    const lines = cartItems.map((item, index) => `${index + 1}. ${item.laptop.title} (SKU: ${item.laptop.sku}) - ${item.qty} x Rs ${item.laptop.price.toLocaleString()} = Rs ${(item.qty * item.laptop.price).toLocaleString()}`).join("\n");
+    const text = `Assalam-o-Alaikum SKILLBOOK,\n\nI want to order these laptops:\n${lines}\n\nTotal: Rs ${cartTotal.toLocaleString()}\n\nPlease confirm stock availability and dispatch procedure.`;
+    window.open(`https://wa.me/923368936528?text=${encodeURIComponent(text)}`, "_blank");
   };
 
   return (
@@ -120,7 +144,6 @@ export default function App() {
             <div className="flex flex-col">
               <span className="text-[22px] font-black tracking-tight text-slate-900 leading-none">
                 SKILL<span className="text-[#00A8CC]">BOOK</span>
-                <span className="text-[10px] text-amber-500 font-extrabold ml-1 uppercase">.pk</span>
               </span>
               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                 Verified Hardware Importers
@@ -187,6 +210,16 @@ export default function App() {
         {/* Mobile Search Input Row */}
         <div className="md:hidden px-4 pb-3">
           <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden bg-white">
+            <select
+              value={selectedSeries}
+              onChange={(e) => setSelectedSeries(e.target.value)}
+              className="bg-slate-50 text-slate-700 px-2 py-2 text-xs font-semibold outline-none cursor-pointer border-r border-slate-200 max-w-[110px]"
+              aria-label="Select laptop series"
+            >
+              {LAPTOP_SERIES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
             <input
               type="text"
               placeholder="Search 840 G8, ZBook, Dell 5520..."
@@ -443,7 +476,7 @@ export default function App() {
 
                       <div className="grid grid-cols-2 gap-1.5">
                         <button
-                          onClick={() => setCartCount((prev) => prev + 1)}
+                          onClick={() => addToCart(laptop)}
                           className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 active:scale-95"
                         >
                           <ShoppingCart className="w-3.5 h-3.5" />
@@ -648,7 +681,7 @@ export default function App() {
 
           {/* Copyright Bottom Bar */}
           <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-teal-200/60 gap-4">
-            <p>© {new Date().getFullYear()} SKILLBOOK PK. All Rights Reserved.</p>
+            <p>© {new Date().getFullYear()} SKILLBOOK. All Rights Reserved.</p>
             <p>
               Engineered by <span className="font-bold text-white">CRAFTLOGIC Studio</span>
             </p>
@@ -684,7 +717,7 @@ export default function App() {
               <div>
                 <h3 className="text-base font-bold text-slate-900 mb-2">Privacy & Buyer Data Protection</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  SKILLBOOK PK only utilizes buyer contact details for courier dispatch and invoice generation. We never share customer phone numbers or addresses with third-party advertising brokers.
+                  SKILLBOOK only utilizes buyer contact details for courier dispatch and invoice generation. We never share customer phone numbers or addresses with third-party advertising brokers.
                 </p>
               </div>
             )}
@@ -719,21 +752,48 @@ export default function App() {
             {activeModal === "cart" && (
               <div>
                 <h3 className="text-base font-bold text-slate-900 mb-2">Shopping Cart ({cartCount} Items)</h3>
-                <p className="text-xs text-slate-600 mb-4">
-                  {cartCount > 0
-                    ? `You have added ${cartCount} machine(s) to your temporary order buffer.`
-                    : "Your cart is currently empty. Click 'Order' on any machine to proceed directly via WhatsApp."}
-                </p>
-                {cartCount > 0 && (
-                  <button
-                    onClick={() => {
-                      alert("Opening WhatsApp Order Desk with your selected items...");
-                      window.open("https://wa.me/923368936528?text=Assalam-o-Alaikum, I want to checkout my cart items.", "_blank");
-                    }}
-                    className="w-full py-2.5 bg-[#00A8CC] text-white rounded-lg text-xs font-bold"
-                  >
-                    Checkout Selected Machines via WhatsApp
-                  </button>
+                {cartItems.length === 0 ? (
+                  <p className="text-xs text-slate-600 mb-4">
+                    Your cart is currently empty. Click 'Cart' on any machine to add it here, or 'Order' on any machine to proceed directly via WhatsApp.
+                  </p>
+                ) : (
+                  <div>
+                    <ul className="space-y-3 mb-4">
+                      {cartItems.map((item) => (
+                        <li key={item.laptop.id} className="flex items-center gap-3 border border-slate-100 rounded-lg p-2">
+                          <img src={item.laptop.image} alt={item.laptop.title} className="h-12 w-12 object-cover rounded shrink-0" loading="lazy" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">{item.laptop.title}</p>
+                            <p className="text-[11px] text-slate-500">Rs {item.laptop.price.toLocaleString()} each</p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => updateCartQty(item.laptop.id, -1)} className="px-2 py-1 bg-slate-100 rounded text-xs font-bold" aria-label="Decrease quantity">-</button>
+                            <span className="text-xs font-bold w-5 text-center">{item.qty}</span>
+                            <button onClick={() => updateCartQty(item.laptop.id, 1)} className="px-2 py-1 bg-slate-100 rounded text-xs font-bold" aria-label="Increase quantity">+</button>
+                          </div>
+                          <button onClick={() => removeFromCart(item.laptop.id)} className="text-slate-400 hover:text-red-600 shrink-0" aria-label="Remove from cart">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex items-center justify-between mb-4 text-sm font-bold text-slate-900">
+                      <span>Total</span>
+                      <span>Rs {cartTotal.toLocaleString()}</span>
+                    </div>
+                    <button
+                      onClick={handleCartWhatsAppCheckout}
+                      className="w-full py-2.5 bg-[#00A8CC] text-white rounded-lg text-xs font-bold"
+                    >
+                      Checkout Selected Machines via WhatsApp
+                    </button>
+                    <button
+                      onClick={() => setCartItems([])}
+                      className="w-full mt-2 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold"
+                    >
+                      Clear Cart
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -813,6 +873,57 @@ export default function App() {
                 ))}
               </ul>
             </div>
+
+            <div className="mb-4 border-t border-slate-100 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Max Budget</span>
+                <span className="text-xs font-black text-[#0E4B5E]">Rs {maxPrice.toLocaleString()}</span>
+              </div>
+              <input
+                type="range"
+                min="45000"
+                max="300000"
+                step="5000"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                className="w-full accent-[#00A8CC] cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                aria-label="Maximum budget"
+              />
+              <div className="flex justify-between text-[10px] text-slate-400 font-bold mt-1">
+                <span>Rs 45,000</span>
+                <span>Rs 300,000</span>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">Sort</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-md px-2.5 py-2 font-semibold text-slate-700 text-xs outline-none cursor-pointer"
+                aria-label="Sort laptops"
+              >
+                <option value="featured">Featured / Stock Order</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-2 border-t border-slate-100">
+              <button
+                onClick={handleResetFilters}
+                className="flex-1 py-2 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold"
+              >
+                Clear All
+              </button>
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="flex-1 py-2 bg-[#00A8CC] text-white rounded-lg text-xs font-bold"
+              >
+                Show {filteredLaptops.length} Results
+              </button>
+            </div>
+
           </div>
         </div>
       )}
