@@ -19,9 +19,59 @@ import {
   Sparkles,
   Info
 } from "lucide-react";
-import { INVENTORY_PRODUCTS, LAPTOP_SERIES, type ShopLaptop } from "./data/shopData";
+import { INVENTORY_PRODUCTS, PHONE_PRODUCTS, CHROMEBOOK_PRODUCTS, ACCESSORY_PRODUCTS, ALL_PRODUCTS, LAPTOP_SERIES, type ShopLaptop } from "./data/shopData";
 
 type SortOption = "featured" | "price-asc" | "price-desc";
+
+type SimpleCardProps = {
+  item: ShopLaptop;
+  addToCart: (item: ShopLaptop) => void;
+  handleWhatsAppOrder: (item: ShopLaptop) => void;
+};
+
+function SimpleCard({ item, addToCart, handleWhatsAppOrder }: SimpleCardProps) {
+  const isLaptop = item.category === "laptop" || !item.category;
+  const displayTitle = isLaptop
+    ? item.title
+    : `${item.title} - ${item.ram} - ${item.storage} - ${item.display}`;
+  const discount = item.originalPrice && item.originalPrice > item.price
+    ? Math.round(((item.originalPrice - item.price) / item.originalPrice) * 100)
+    : 0;
+  return (
+    <div className="bg-white border border-slate-200 rounded-lg p-3 flex flex-col h-full">
+      <div className="relative w-full aspect-square bg-white rounded-lg overflow-hidden mb-3">
+        <img src={item.image} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
+        {discount > 0 && (
+          <span className="absolute top-2 left-2 bg-red-600 text-white text-sm font-bold px-2 py-1 rounded">Sale -{discount}%</span>
+        )}
+      </div>
+      <h3 title={displayTitle} className="text-sm font-semibold text-black line-clamp-2 min-h-[2.5rem] leading-snug mb-2">
+        {displayTitle}
+      </h3>
+      <p className="text-sm text-slate-600 mb-2">
+        <span className="text-amber-500 font-bold">★ {item.rating.toFixed(1)}</span> <span>({item.reviewsCount})</span> <span className="text-slate-400">• {item.condition}</span>
+      </p>
+      <div className="mt-auto pt-2 border-t border-slate-200">
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className="text-base font-bold text-black">Rs {item.price.toLocaleString()}</span>
+          {item.originalPrice && (
+            <span className="text-sm text-slate-400 line-through">Rs {item.originalPrice.toLocaleString()}</span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button onClick={() => addToCart(item)} className="w-full py-2.5 bg-white border border-slate-300 text-black rounded-lg text-sm font-bold flex items-center justify-center gap-1">
+            <ShoppingCart className="w-4 h-4" />
+            <span>Cart</span>
+          </button>
+          <button onClick={() => handleWhatsAppOrder(item)} className="w-full py-2.5 bg-[#00A8CC] text-white rounded-lg text-sm font-bold flex items-center justify-center gap-1">
+            <PhoneCall className="w-4 h-4" />
+            <span>Order</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [selectedSeries, setSelectedSeries] = useState<string>("All Laptops");
@@ -66,6 +116,32 @@ export default function App() {
     return list;
   }, [selectedSeries, selectedBrand, maxPrice, searchQuery, sortBy]);
 
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const matchSearch = (item: ShopLaptop) => {
+    const q = searchQuery.toLowerCase().trim();
+    if (q === "") return true;
+    return (
+      item.title.toLowerCase().includes(q) ||
+      item.brand.toLowerCase().includes(q) ||
+      item.processor.toLowerCase().includes(q) ||
+      item.display.toLowerCase().includes(q) ||
+      item.generation.toLowerCase().includes(q) ||
+      item.sku.toLowerCase().includes(q) ||
+      item.ram.toLowerCase().includes(q) ||
+      item.storage.toLowerCase().includes(q)
+    );
+  };
+
+  const filteredPhones = PHONE_PRODUCTS.filter(matchSearch);
+  const filteredChromebooks = CHROMEBOOK_PRODUCTS.filter(matchSearch);
+  const filteredAccessories = ACCESSORY_PRODUCTS.filter(matchSearch);
+  const filteredDeals = ALL_PRODUCTS.filter((item) => item.originalPrice && item.originalPrice > item.price && matchSearch(item))
+    .sort((a, b) => (b.originalPrice! - b.price) / b.originalPrice! - (a.originalPrice! - a.price) / a.originalPrice!)
+    .slice(0, 8);
+
   // WhatsApp Order Trigger with exact product details
   const handleWhatsAppOrder = (laptop: ShopLaptop) => {
     const phone = "923368936528";
@@ -104,14 +180,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col justify-between selection:bg-[#00A8CC] selection:text-white">
+    <div className="min-h-screen bg-white text-slate-900 flex flex-col justify-between">
       {/* ================= 1. REFINED TOP NOTIFICATION STRIP ================= */}
-      <div className="bg-[#0A2E38] text-slate-200 text-xs py-2 px-4 border-b border-teal-900/60">
+      <div className="bg-white text-black text-sm py-2 px-4 border-b border-slate-200">
         <div className="max-w-[1400px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <p className="font-medium text-slate-200">
-              Verified Used & Open-Box Laptops • 100% Benchmarked • Cash on Delivery Across Pakistan
+            <p className="font-medium text-black">
+              Verified Laptops, Phones, Chromebooks & Accessories in Pakistan — Cash on Delivery across Pakistan
             </p>
           </div>
           <div className="flex items-center gap-4 text-[11px] text-teal-200/90 font-medium">
@@ -131,7 +207,7 @@ export default function App() {
             onClick={handleResetFilters}
             className="flex items-center gap-3 cursor-pointer shrink-0"
           >
-            <div className="h-11 w-11 rounded-xl bg-gradient-to-tr from-[#0E4B5E] to-[#00A8CC] p-0.5 flex items-center justify-center shadow-sm">
+            <div className="h-11 w-11 rounded-xl bg-[#0E4B5E] p-0.5 flex items-center justify-center">
               <div className="h-full w-full bg-white rounded-[10px] flex items-center justify-center overflow-hidden">
                 <svg viewBox="0 0 36 36" fill="none" className="h-7 w-7">
                   <rect x="5" y="7" width="26" height="17" rx="2" fill="#0E4B5E" />
@@ -168,7 +244,7 @@ export default function App() {
 
             <input
               type="text"
-              placeholder="Search by model (e.g. 840 G8, ZBook, Touch, i7 11th Gen, DDR5)..."
+              placeholder="Search laptops, phones, chromebooks, accessories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 outline-none"
@@ -222,7 +298,7 @@ export default function App() {
             </select>
             <input
               type="text"
-              placeholder="Search 840 G8, ZBook, Dell 5520..."
+              placeholder="Search laptops, phones, accessories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1 px-3 py-2 text-xs text-slate-800 outline-none"
@@ -268,6 +344,33 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Simple category boxes */}
+      <section id="categories" className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 w-full">
+        <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Shop by Category</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <button onClick={() => scrollToSection("shop-laptops")} className="bg-white border border-slate-200 rounded-lg p-4 text-left flex flex-col h-full">
+            <span className="text-base font-bold text-black mb-1">Laptops</span>
+            <span className="text-sm text-slate-600 mb-3">Verified business laptops and workstations.</span>
+            <span className="text-sm font-bold text-[#00A8CC] mt-auto">Shop Laptops</span>
+          </button>
+          <button onClick={() => scrollToSection("shop-phones")} className="bg-white border border-slate-200 rounded-lg p-4 text-left flex flex-col h-full">
+            <span className="text-base font-bold text-black mb-1">Mobile Phones</span>
+            <span className="text-sm text-slate-600 mb-3">iPhone, Pixel, Samsung, Tecno and Realme.</span>
+            <span className="text-sm font-bold text-[#00A8CC] mt-auto">Shop Phones</span>
+          </button>
+          <button onClick={() => scrollToSection("shop-chromebooks")} className="bg-white border border-slate-200 rounded-lg p-4 text-left flex flex-col h-full">
+            <span className="text-base font-bold text-black mb-1">Chromebooks</span>
+            <span className="text-sm text-slate-600 mb-3">Simple, light laptops for study and work.</span>
+            <span className="text-sm font-bold text-[#00A8CC] mt-auto">Shop Chromebooks</span>
+          </button>
+          <button onClick={() => scrollToSection("shop-accessories")} className="bg-white border border-slate-200 rounded-lg p-4 text-left flex flex-col h-full">
+            <span className="text-base font-bold text-black mb-1">Accessories</span>
+            <span className="text-sm text-slate-600 mb-3">Chargers, bags, mouse, keyboard and more.</span>
+            <span className="text-sm font-bold text-[#00A8CC] mt-auto">Shop Accessories</span>
+          </button>
+        </div>
+      </section>
 
       {/* ================= 4. MAIN STOREFRONT (2-COLUMN ARCHITECTURE) ================= */}
       <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-8 flex-1 w-full">
@@ -357,7 +460,7 @@ export default function App() {
             </div>
 
             {/* Quality Assurance Badge */}
-            <div className="mt-6 border-t border-slate-100 pt-4 bg-slate-50 -mx-5 -mb-5 p-4 rounded-b-xl border-b border-slate-200">
+            <div className="mt-6 border-t border-slate-100 pt-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
               <div className="flex items-start gap-2 text-xs text-slate-600">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <p className="text-[11px] leading-tight">
@@ -369,130 +472,18 @@ export default function App() {
           </aside>
 
           {/* ================= RIGHT PRODUCT GRID ================= */}
-          <section className="flex-1 min-w-0">
+          <section id="shop-laptops" className="flex-1 min-w-0">
+            <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Laptops</h2>
             {filteredLaptops.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-xs">
-                <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <h3 className="text-sm font-bold text-slate-900">No laptops match your budget or series</h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                  Try adjusting the maximum price slider or clear filters to view available inventory.
-                </p>
-                <button
-                  onClick={handleResetFilters}
-                  className="mt-4 px-4 py-2 bg-[#00A8CC] text-white rounded-lg text-xs font-bold"
-                >
-                  Reset All Filters
-                </button>
+              <div className="bg-white border border-slate-200 rounded-lg p-8 text-center">
+                <h3 className="text-base font-bold text-black">No laptops match your filters</h3>
+                <p className="text-sm text-slate-600 mt-1">Try a different search or clear the filters.</p>
+                <button onClick={handleResetFilters} className="mt-4 px-4 py-2.5 bg-[#00A8CC] text-white rounded-lg text-sm font-bold">Reset All Filters</button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {filteredLaptops.map((laptop: ShopLaptop) => (
-                  <div
-                    key={laptop.id}
-                    className="custom-card-shadow bg-white border border-slate-200/80 rounded-xl p-3.5 flex flex-col justify-between group"
-                  >
-                    <div>
-                      {/* Laptop Visual Image Container */}
-                      <div className="relative aspect-[4/3] w-full bg-slate-50 rounded-lg overflow-hidden flex items-center justify-center mb-3">
-                        <img
-                          src={laptop.image}
-                          alt={laptop.title}
-                          className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          loading="lazy"
-                        />
-                        <span className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                          {laptop.brand}
-                        </span>
-                        <span className="absolute bottom-2 right-2 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded">
-                          {laptop.condition}
-                        </span>
-                      </div>
-
-                      {/* Series & Processor Micro-Tag */}
-                      <div className="flex items-center gap-1.5 mb-1.5">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00A8CC] bg-teal-50 px-2 py-0.5 rounded">
-                          {laptop.generation}
-                        </span>
-                        {laptop.hasTouch && (
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
-                            Touch
-                          </span>
-                        )}
-                        {laptop.hasBacklit && (
-                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            Backlit
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Laptop Title */}
-                      <h3
-                        title={laptop.title}
-                        className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug group-hover:text-[#00A8CC] transition-colors mb-2 min-h-[34px]"
-                      >
-                        {laptop.title}
-                      </h3>
-
-                      {/* Clean Hardware Specs List */}
-                      <div className="space-y-1 bg-slate-50/70 p-2.5 rounded-lg border border-slate-100 text-[11px] font-medium text-slate-600 mb-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Processor:</span>
-                          <span className="font-semibold text-slate-800">{laptop.processor}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">RAM / SSD:</span>
-                          <span className="font-semibold text-slate-800">{laptop.ram} • {laptop.storage}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400">Screen:</span>
-                          <span className="font-semibold text-slate-800">{laptop.display}</span>
-                        </div>
-                        {laptop.graphics && (
-                          <div className="flex items-center justify-between text-indigo-600">
-                            <span>GPU:</span>
-                            <span className="font-bold">{laptop.graphics}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Price and Instant WhatsApp Checkout */}
-                    <div className="pt-2 border-t border-slate-100">
-                      <div className="flex items-baseline justify-between mb-2.5">
-                        <div>
-                          <div className="text-base font-extrabold text-[#0E4B5E]">
-                            Rs {laptop.price.toLocaleString()}
-                          </div>
-                          {laptop.originalPrice && (
-                            <div className="text-[11px] text-slate-400 line-through -mt-0.5">
-                              Rs {laptop.originalPrice.toLocaleString()}
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
-                          Charger Included
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-1.5">
-                        <button
-                          onClick={() => addToCart(laptop)}
-                          className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 active:scale-95"
-                        >
-                          <ShoppingCart className="w-3.5 h-3.5" />
-                          <span>Cart</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleWhatsAppOrder(laptop)}
-                          className="w-full py-2 bg-[#00A8CC] hover:bg-[#0E4B5E] text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-xs active:scale-95"
-                        >
-                          <PhoneCall className="w-3 h-3 text-amber-300" />
-                          <span>Order</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <SimpleCard key={laptop.id} item={laptop} addToCart={addToCart} handleWhatsAppOrder={handleWhatsAppOrder} />
                 ))}
               </div>
             )}
@@ -500,8 +491,100 @@ export default function App() {
         </div>
       </main>
 
+      {/* Simple grouped product sections */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6 w-full">
+        {filteredPhones.length > 0 && (
+          <section id="shop-phones" className="mb-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Mobile Phones</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredPhones.map((item: ShopLaptop) => (
+                <SimpleCard key={item.id} item={item} addToCart={addToCart} handleWhatsAppOrder={handleWhatsAppOrder} />
+              ))}
+            </div>
+          </section>
+        )}
+        {filteredChromebooks.length > 0 && (
+          <section id="shop-chromebooks" className="mb-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Chromebooks</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredChromebooks.map((item: ShopLaptop) => (
+                <SimpleCard key={item.id} item={item} addToCart={addToCart} handleWhatsAppOrder={handleWhatsAppOrder} />
+              ))}
+            </div>
+          </section>
+        )}
+        {filteredAccessories.length > 0 && (
+          <section id="shop-accessories" className="mb-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Accessories</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredAccessories.map((item: ShopLaptop) => (
+                <SimpleCard key={item.id} item={item} addToCart={addToCart} handleWhatsAppOrder={handleWhatsAppOrder} />
+              ))}
+            </div>
+          </section>
+        )}
+        {filteredDeals.length > 0 && (
+          <section id="deals" className="mb-10">
+            <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Deals and Discounts</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {filteredDeals.map((item: ShopLaptop) => (
+                <SimpleCard key={item.id} item={item} addToCart={addToCart} handleWhatsAppOrder={handleWhatsAppOrder} />
+              ))}
+            </div>
+          </section>
+        )}
+        {/* SAMPLE REVIEWS - replace with real customer reviews before launch */}
+        <section id="reviews" className="mb-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Customer Reviews</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <p className="text-sm text-black mb-3">Good laptop, checked before delivery, and Cash on Delivery was easy.</p>
+              <p className="text-sm font-bold text-black mt-auto">Verified Buyer, Karachi</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <p className="text-sm text-black mb-3">Order on WhatsApp was simple and the price was clear.</p>
+              <p className="text-sm font-bold text-black mt-auto">Verified Buyer, Lahore</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <p className="text-sm text-black mb-3">Phone arrived in good condition with charger included.</p>
+              <p className="text-sm font-bold text-black mt-auto">Verified Buyer, Islamabad</p>
+            </div>
+          </div>
+        </section>
+        <section id="why-choose-us" className="mb-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Why Choose Us</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <h3 className="text-base font-bold text-black mb-1">Verified Stock</h3>
+              <p className="text-sm text-slate-600">Every product is checked before dispatch.</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <h3 className="text-base font-bold text-black mb-1">100% Benchmarked</h3>
+              <p className="text-sm text-slate-600">Machines are tested and benchmarked.</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <h3 className="text-base font-bold text-black mb-1">Cash on Delivery</h3>
+              <p className="text-sm text-slate-600">Pay when your order arrives, across Pakistan.</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col h-full">
+              <h3 className="text-base font-bold text-black mb-1">7-Day Checking Warranty</h3>
+              <p className="text-sm text-slate-600">Check your product and get help if there is a problem.</p>
+            </div>
+          </div>
+        </section>
+        <section id="contact" className="mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-black text-left mb-4">Contact Us</h2>
+          <div className="bg-white border border-slate-200 rounded-lg p-4">
+            <p className="text-sm text-black mb-1">WhatsApp / Phone: +92 336 8936528</p>
+            <p className="text-sm text-black mb-1">Email: support@skillbook.pk</p>
+            <p className="text-sm text-black mb-3">Address: Near Bank Alfalah, Model Colony, Karachi, Pakistan</p>
+            <a href="https://wa.me/923368936528" target="_blank" rel="noreferrer" className="inline-block px-4 py-2.5 bg-[#00A8CC] text-white rounded-lg text-sm font-bold">Order on WhatsApp</a>
+          </div>
+        </section>
+      </div>
+
       {/* ================= 5. FULLY CLICKABLE MULTI-COLUMN FOOTER ================= */}
-      <footer className="bg-[#0E4B5E] text-white pt-14 pb-8 border-t border-teal-900 mt-20">
+      <footer className="bg-[#0E4B5E] text-white pt-14 pb-8 border-t border-teal-900 mt-6">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-12 border-b border-teal-700/60">
             
