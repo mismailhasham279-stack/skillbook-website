@@ -52,7 +52,6 @@ export interface OrderReceipt {
 // ==========================================
 // 2. CONTACT CONSTANTS
 // ==========================================
-const OFFICIAL_WHATSAPP_RAW = "03400207828";
 const OFFICIAL_WHATSAPP_INT = "923400207828";
 const OFFICIAL_EMAIL = "skillbook786@gmail.com";
 
