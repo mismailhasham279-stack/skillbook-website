@@ -23,7 +23,7 @@ export interface ProductItem {
   id: string;
   name: string;
   category: 'Laptops' | 'MacBooks' | 'Chromebooks' | 'Smartphones' | 'Accessories';
-  brand: 'Apple' | 'Lenovo' | 'Dell' | 'HP' | 'Samsung' | 'Anker' | 'Logitech';
+  brand: 'Apple' | 'Lenovo' | 'Dell' | 'HP' | 'Acer' | 'Samsung' | 'Anker' | 'Logitech';
   pricePKR: number;
   originalPricePKR?: number;
   rating: number;
@@ -60,7 +60,8 @@ export interface OrderReceipt {
 // ==========================================
 // 2. CONTACT CONSTANTS
 // ==========================================
-const OFFICIAL_WHATSAPP_INT = "923400207828";
+const OFFICIAL_WHATSAPP_INT = "923198345849";
+const OFFICIAL_WHATSAPP_DISPLAY = "03198345849";
 const OFFICIAL_EMAIL = "skillbook786@gmail.com";
 
 // ==========================================
@@ -106,6 +107,17 @@ const HERO_SLIDES = [
   },
   {
     id: 3,
+    tag: 'Student & Cloud Computing',
+    title: 'Lightweight Chromebooks &',
+    highlight: 'Fast ChromeOS Devices.',
+    subtitle: 'Verified HP, Acer, and Lenovo Chromebooks with Play Store support, long battery backup, and instant boot speeds.',
+    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1000&q=85',
+    fallbackImage: FALLBACK_LAPTOP,
+    buttonText: 'Explore Chromebooks',
+    targetCategory: 'Chromebooks'
+  },
+  {
+    id: 4,
     tag: 'Tested Power Accessories',
     title: 'Precision Productivity &',
     highlight: 'Fast GaN Charging.',
@@ -114,17 +126,6 @@ const HERO_SLIDES = [
     fallbackImage: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=700&q=80',
     buttonText: 'Browse Accessories',
     targetCategory: 'Accessories'
-  },
-  {
-    id: 4,
-    tag: 'Certified Flagship Models',
-    title: 'Inspected Smartphones &',
-    highlight: 'Hardware Essentials.',
-    subtitle: 'Original smartphones checked for battery health, genuine displays, and secure nationwide courier dispatch.',
-    image: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?auto=format&fit=crop&w=1000&q=85',
-    fallbackImage: 'https://images.unsplash.com/photo-1592750475338-74b7b21085ab?auto=format&fit=crop&w=700&q=80',
-    buttonText: 'Explore Smartphones',
-    targetCategory: 'Smartphones'
   }
 ];
 
@@ -168,6 +169,25 @@ const BASE_INVENTORY: ProductItem[] = [
     specs: { cpu: 'Apple M2 Chip', ram: '8GB Unified RAM', storage: '256GB Fast PCIe SSD', screen: '13.6" Liquid Retina True Tone' },
     stockCount: 6,
     featured: false,
+    reviewsList: []
+  },
+  {
+    id: 'acer-chromebook-spin-713',
+    name: 'Acer Chromebook Spin 713 (2-in-1 Touch)',
+    category: 'Chromebooks',
+    brand: 'Acer',
+    pricePKR: 42000,
+    originalPricePKR: 48000,
+    rating: 4.8,
+    reviewsCount: 12,
+    condition: 'Certified Refurbished',
+    image: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=700&q=80',
+    galleryImages: ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=700&q=80'],
+    description: 'Convertible 360-degree touchscreen Acer Chromebook with Google Play Store support, backlit keyboard, and Type-C fast charging.',
+    highlights: ['360° Convertible Touch Display', 'Google Play Store & Linux Ready', 'Type-C Original Charger Included'],
+    specs: { cpu: 'Intel Core i5 10th Gen', ram: '8GB DDR4 RAM', storage: '128GB NVMe SSD', screen: '13.5" 2K VertiView Touch' },
+    stockCount: 7,
+    featured: true,
     reviewsList: []
   },
   {
@@ -257,8 +277,8 @@ const BASE_INVENTORY: ProductItem[] = [
     condition: 'Brand New (Box Pack)',
     image: IMG_HP_SILVER,
     galleryImages: [IMG_HP_SILVER],
-    description: 'Open box like-new condition compact business notebook with 13th Gen Core i5 and DDR5 memory.',
-    highlights: ['Open Box Like New', '16GB DDR5 RAM + 512GB SSD', 'Original Type-C Charger'],
+    description: 'Clean like-new condition compact business notebook with 13th Gen Core i5 and DDR5 memory.',
+    highlights: ['Like New Condition', '16GB DDR5 RAM + 512GB SSD', 'Original Type-C Charger'],
     specs: { cpu: 'Core i5 13th Gen', ram: '16GB RAM DDR5', storage: '512GB SSD', screen: '13.3" Full HD Display' },
     stockCount: 4,
     featured: true,
@@ -489,8 +509,8 @@ const FEATURED_STREAM_ACCESSORIES = [
   { id: 'acc-speaker', name: 'Bluetooth Speaker', image: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?auto=format&fit=crop&w=700&q=80' }
 ];
 
-const CATEGORIES = ['All', 'Laptops', 'MacBooks', 'Smartphones', 'Accessories'];
-const BRANDS = ['Apple', 'Lenovo', 'Dell', 'HP', 'Samsung', 'Anker', 'Logitech'];
+const CATEGORIES = ['All', 'Laptops', 'MacBooks', 'Chromebooks', 'Smartphones', 'Accessories'];
+const BRANDS = ['Apple', 'Lenovo', 'Dell', 'HP', 'Acer', 'Samsung', 'Anker', 'Logitech'];
 
 const formatPKR = (amount: number | undefined): string => {
   if (typeof amount !== 'number') return 'Rs. 0';
@@ -504,7 +524,159 @@ const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 );
 
 // ==========================================
-// 6. CLOUD-SYNCED ADMIN PANEL
+// 6. TERMS & CONDITIONS MODAL COMPONENT
+// ==========================================
+function TermsAndConditionsModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/70 backdrop-blur-xs">
+      <div className="bg-white w-full max-w-3xl rounded-3xl border border-slate-200 shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-full">
+              Official Store Policy
+            </span>
+            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
+              TERMS & CONDITIONS — SkillBook
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Laptops, Computers & Accessories • Last Updated: November 13, 2026
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold text-sm"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-600 leading-relaxed">
+          <p className="text-slate-700 font-medium">
+            Welcome to SkillBook! Thank you for visiting our website. By accessing or purchasing products from our website, you agree to the following Terms & Conditions. Please read them carefully before placing an order.
+          </p>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">1. General Information</h3>
+            <p>SkillBook is an online retailer dealing in laptops, computers, and accessories. We aim to provide quality products at competitive prices with reliable customer service. We reserve the right to update or modify these Terms & Conditions at any time without prior notice.</p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">2. Product Information</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>We make every effort to provide accurate product descriptions, specifications, images, and prices.</li>
+              <li>Product specifications, including processor, RAM, storage, display, battery condition, and accessories, are mentioned in the respective product listings.</li>
+              <li>Actual product appearance may slightly differ from website images.</li>
+              <li>Customers are advised to carefully check product details before placing an order.</li>
+              <li>Both new and imported used laptops may be available. Their condition will be clearly mentioned in the product description.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">3. Pricing & Payment (COD Only for Confirmed Orders)</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>All prices are mentioned in Pakistani Rupees (PKR), unless stated otherwise, and may change without prior notice.</li>
+              <li>Orders are subject to product availability.</li>
+              <li><strong>Cash on Delivery (COD) is strictly available only for confirmed orders</strong> verified by our sales team.</li>
+              <li>Any applicable delivery charges or advance payment requirements will be communicated to customers during the order verification process.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">4. Order Confirmation & Cancellation</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Orders are confirmed only after verification by our sales team via phone or WhatsApp.</li>
+              <li>SkillBook reserves the right to cancel an order in case of incorrect pricing, stock unavailability, or suspected fraudulent activity.</li>
+              <li>Customers should contact us as soon as possible if they wish to cancel an order before dispatch. Orders already dispatched may not be eligible for cancellation.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">5. Delivery & Shipping</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>We offer delivery services to customers in different cities across Pakistan, subject to courier availability.</li>
+              <li>Delivery time may vary depending on the customer's location and courier service.</li>
+              <li>Customers must provide a complete and accurate delivery address and contact number.</li>
+              <li>SkillBook is not responsible for delays caused by courier companies, weather conditions, or other circumstances beyond our reasonable control.</li>
+              <li>Customers should inspect the outer parcel upon delivery and report any visible shipping damage immediately.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">6. Warranty & Checking Policy</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Warranty or checking period will be specified on the respective product listing or invoice.</li>
+              <li>Some products come with a 7-day checking warranty, while others may be sold without a warranty as stated.</li>
+              <li>Warranty does not cover physical damage, liquid damage, misuse, unauthorized repairs, or accidental damage.</li>
+              <li>Customers must contact SkillBook before attempting any warranty-related repair. The original invoice or proof of purchase is required to claim warranty services.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">7. Returns & Exchange Policy</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Customers must contact SkillBook within <strong>7 days</strong> of receiving a product if they experience a genuine hardware issue.</li>
+              <li>Returns or exchanges will be considered in accordance with the product's stated checking warranty and applicable consumer protection laws.</li>
+              <li>Products must be returned with their original accessories, charger, packaging, and invoice, where applicable.</li>
+              <li>Products damaged due to customer negligence, misuse, or unauthorized modification will not qualify for a return or exchange.</li>
+              <li>Any approved refund or exchange will be processed after technical inspection and verification.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">8. Used & Imported Laptops</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Used and imported laptops may have minor cosmetic signs of previous use.</li>
+              <li>Battery backup may vary depending on the laptop model, battery health, and usage.</li>
+              <li>Customers should review the product condition and specifications before purchasing.</li>
+              <li>Any known defects or limitations disclosed in the product listing will form part of the purchase terms.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">9. Customer Responsibilities</h3>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>Provide accurate personal and delivery information.</li>
+              <li>Verify product specifications before ordering.</li>
+              <li>Use purchased products responsibly and avoid fraudulent orders or website misuse.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">10. Privacy & Security</h3>
+            <p>SkillBook respects customer privacy. Personal information collected during purchases (names, phone numbers, and delivery addresses) is used strictly for order processing, delivery, and customer support. We never sell customers' personal information to third parties.</p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">11. Limitation of Liability & Changes</h3>
+            <p>SkillBook makes reasonable efforts to provide reliable products and services, but is not responsible for indirect losses arising from circumstances beyond our reasonable control. SkillBook reserves the right to revise these Terms & Conditions whenever necessary.</p>
+          </div>
+
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+            <h3 className="font-bold text-slate-900 text-sm">12. Contact Us</h3>
+            <p><strong>Business Name:</strong> SkillBook</p>
+            <p><strong>Email:</strong> {OFFICIAL_EMAIL}</p>
+            <p><strong>WhatsApp:</strong> {OFFICIAL_WHATSAPP_DISPLAY}</p>
+            <p><strong>Business Location:</strong> Pakistan</p>
+          </div>
+        </div>
+
+        <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 rounded-b-3xl flex justify-end shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="bg-slate-900 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition"
+          >
+            I Understand & Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 7. CLOUD-SYNCED ADMIN PANEL
 // ==========================================
 function EmbeddedAdminModal({
   products,
@@ -521,8 +693,8 @@ function EmbeddedAdminModal({
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [brand, setBrand] = useState<'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung'>('HP');
-  const [category, setCategory] = useState<'Laptops' | 'MacBooks' | 'Accessories'>('Laptops');
+  const [brand, setBrand] = useState<'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Acer' | 'Samsung'>('HP');
+  const [category, setCategory] = useState<'Laptops' | 'MacBooks' | 'Chromebooks' | 'Smartphones' | 'Accessories'>('Laptops');
   const [price, setPrice] = useState<number | string>('');
   const [cpu, setCpu] = useState('');
   const [ram, setRam] = useState('');
@@ -535,8 +707,8 @@ function EmbeddedAdminModal({
   const handleStartEdit = (product: ProductItem) => {
     setEditingId(product.id);
     setName(product.name || '');
-    setBrand((product.brand as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung') || 'HP');
-    setCategory((product.category as 'Laptops' | 'MacBooks' | 'Accessories') || 'Laptops');
+    setBrand((product.brand as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Acer' | 'Samsung') || 'HP');
+    setCategory((product.category as 'Laptops' | 'MacBooks' | 'Chromebooks' | 'Smartphones' | 'Accessories') || 'Laptops');
     setPrice(product.pricePKR || '');
     setCpu(product.specs?.cpu || '');
     setRam(product.specs?.ram || '');
@@ -749,13 +921,14 @@ function EmbeddedAdminModal({
               <label className="text-[11px] font-semibold text-slate-600 block mb-1">Brand</label>
               <select
                 value={brand}
-                onChange={(e) => setBrand(e.target.value as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung')}
+                onChange={(e) => setBrand(e.target.value as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Acer' | 'Samsung')}
                 className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600 bg-white"
               >
                 <option value="HP">HP</option>
                 <option value="Dell">Dell</option>
                 <option value="Lenovo">Lenovo</option>
                 <option value="Apple">Apple</option>
+                <option value="Acer">Acer</option>
                 <option value="Samsung">Samsung</option>
               </select>
             </div>
@@ -764,11 +937,13 @@ function EmbeddedAdminModal({
               <label className="text-[11px] font-semibold text-slate-600 block mb-1">Category</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as 'Laptops' | 'MacBooks' | 'Accessories')}
+                onChange={(e) => setCategory(e.target.value as 'Laptops' | 'MacBooks' | 'Chromebooks' | 'Smartphones' | 'Accessories')}
                 className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600 bg-white"
               >
                 <option value="Laptops">Laptops</option>
                 <option value="MacBooks">MacBooks</option>
+                <option value="Chromebooks">Chromebooks</option>
+                <option value="Smartphones">Smartphones</option>
                 <option value="Accessories">Accessories</option>
               </select>
             </div>
@@ -873,7 +1048,7 @@ function EmbeddedAdminModal({
                       />
                       <div className="truncate max-w-[180px] sm:max-w-xs">
                         <span className="font-semibold text-slate-800 block truncate">{p?.name || 'Unnamed Device'}</span>
-                        <span className="text-[10px] text-slate-400">{p?.brand} • {p?.specs?.cpu || ''}</span>
+                        <span className="text-[10px] text-slate-400">{p?.brand} • {p?.category}</span>
                       </div>
                       <span className="text-sky-700 font-bold ml-2">Rs. {displayPrice}</span>
                     </div>
@@ -910,13 +1085,12 @@ function EmbeddedAdminModal({
 }
 
 // ==========================================
-// 7. MAIN APPLICATION ROOT COMPONENT
+// 8. MAIN APPLICATION ROOT COMPONENT
 // ==========================================
 export default function App() {
   const [products, setProducts] = useState<ProductItem[]>(BASE_INVENTORY);
   const [deletedIds, setDeletedIds] = useState<string[]>([]);
 
-  // Fetch & Merge Live Cloud Products on Mount
   useEffect(() => {
     const syncCloudProducts = async () => {
       if (!supabase) return;
@@ -943,6 +1117,7 @@ export default function App() {
   }, [deletedIds]);
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
@@ -1175,9 +1350,9 @@ export default function App() {
       `Delivery Address: ${customerAddress.trim()}\n\n` +
       `ORDERED ITEMS:\n` +
       `${itemsListText}\n\n` +
-      `TOTAL AMOUNT DUE (COD): Rs. ${subtotalPKR.toLocaleString('en-PK')}\n` +
+      `TOTAL AMOUNT DUE (COD - CONFIRMED ORDER): Rs. ${subtotalPKR.toLocaleString('en-PK')}\n` +
       `Date: ${orderData.date}\n\n` +
-      `Please verify customer on WhatsApp and dispatch parcel.`
+      `Please verify customer on WhatsApp (${OFFICIAL_WHATSAPP_DISPLAY}) and dispatch parcel.`
     );
 
     window.open(`mailto:${OFFICIAL_EMAIL}?subject=${emailSubject}&body=${emailBody}`, '_blank');
@@ -1204,12 +1379,12 @@ export default function App() {
           <div className="flex items-center gap-3">
             <span>✉️ Order Desk: <strong className="text-sky-400">{OFFICIAL_EMAIL}</strong></span>
             <span className="text-slate-600">|</span>
-            <span className="text-emerald-400 font-semibold">✓ Tested Hardware Verification</span>
+            <span>📱 WhatsApp: <strong className="text-emerald-400">{OFFICIAL_WHATSAPP_DISPLAY}</strong></span>
           </div>
           <div className="flex items-center gap-3">
-            <span>⚡ Nationwide Delivery Across Pakistan (COD Available)</span>
+            <span>⚡ Nationwide Delivery Across Pakistan (COD Only for Confirmed Orders)</span>
             <span className="text-slate-600">|</span>
-            <span className="text-sky-400 font-semibold">✓ 7-Day Testing Warranty</span>
+            <span className="text-sky-400 font-semibold">✓ 7-Day Checking Warranty</span>
           </div>
         </div>
       </div>
@@ -1238,7 +1413,7 @@ export default function App() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search MacBook, ThinkPad, Core i7..."
+                placeholder="Search MacBook, Chromebook, Acer, Core i7..."
                 className="w-full bg-slate-100/90 border border-slate-200/90 rounded-xl pl-3 pr-3 py-1.5 text-[11px] sm:text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-sky-600 transition"
               />
             </div>
@@ -1330,20 +1505,20 @@ export default function App() {
       <section className="max-w-7xl mx-auto px-4 py-5 w-full">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-center sm:text-left">
-            <h4 className="text-xs font-bold text-slate-900">🚚 Free Fast Delivery</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500">All Pakistan 24-48h dispatch</p>
+            <h4 className="text-xs font-bold text-slate-900">🚚 Nationwide Shipping</h4>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">Tracked courier across Pakistan</p>
           </div>
           <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-center sm:text-left">
-            <h4 className="text-xs font-bold text-slate-900">🛡️ 1-Year Hardware Cover</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500">Component testing support</p>
+            <h4 className="text-xs font-bold text-slate-900">✅ Confirmed Order COD</h4>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">COD only for confirmed orders</p>
           </div>
           <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-center sm:text-left">
-            <h4 className="text-xs font-bold text-slate-900">🔄 7-Day Replacement</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500">Hassle-free hardware check</p>
+            <h4 className="text-xs font-bold text-slate-900">🔄 7-Day Checking Policy</h4>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">Hardware replacement support</p>
           </div>
           <div className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-center sm:text-left">
-            <h4 className="text-xs font-bold text-slate-900">📦 Open Box Inspection</h4>
-            <p className="text-[10px] sm:text-[11px] text-slate-500">Check device before payment</p>
+            <h4 className="text-xs font-bold text-slate-900">🔍 Diagnostic Verified</h4>
+            <p className="text-[10px] sm:text-[11px] text-slate-500">Tested battery, screen & ports</p>
           </div>
         </div>
       </section>
@@ -1352,7 +1527,7 @@ export default function App() {
         <div className="rounded-2xl bg-white p-3 border border-slate-200/80 shadow-xs overflow-hidden">
           <span className="text-[10px] uppercase font-bold text-sky-700 tracking-wider block mb-2">Featured Hardware Collection</span>
           
-          <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-2">Verified Laptops</span>
+          <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block mb-2">Verified Laptops & Chromebooks</span>
           <div className="overflow-hidden w-full relative mb-3">
             <div className="animate-marquee-left flex gap-3">
               {[...FEATURED_STREAM_LAPTOPS, ...FEATURED_STREAM_LAPTOPS].map((item, idx) => (
@@ -1553,11 +1728,11 @@ export default function App() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center sm:text-left shadow-xs">
             <div className="h-10 w-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center mb-3 mx-auto sm:mx-0 font-bold">
-              📦
+              ✅
             </div>
-            <h3 className="text-sm font-semibold text-slate-900">Check Before Payment</h3>
+            <h3 className="text-sm font-semibold text-slate-900">COD Only for Confirmed Orders</h3>
             <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              Open parcel inspection upon delivery ensures complete peace of mind before paying cash to the courier.
+              Orders are verified with our sales team via WhatsApp before courier dispatch to ensure accurate specs and smooth delivery.
             </p>
           </div>
 
@@ -1567,7 +1742,7 @@ export default function App() {
             </div>
             <h3 className="text-sm font-semibold text-slate-900">Direct Founder & Support Help</h3>
             <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-              No automated chatbots. Chat directly on WhatsApp for authentic photos, battery health screenshots, and spec guidance.
+              No automated chatbots. Chat directly on WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY}) for authentic photos, battery health reports, and spec guidance.
             </p>
           </div>
         </div>
@@ -1583,7 +1758,7 @@ export default function App() {
               Reliable computing hardware without the gray-market confusion.
             </h2>
             <p className="mt-3 text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-              SkillBook is dedicated to delivering grade-A tested enterprise laptops, genuine MacBooks, and high-performance charging accessories. We focus on component transparency, honest grading, and straightforward customer service across Pakistan.
+              SkillBook is dedicated to delivering grade-A tested enterprise laptops, Chromebooks, genuine MacBooks, and high-performance charging accessories across Pakistan.
             </p>
             <div className="mt-6 grid grid-cols-3 gap-4 border-t border-slate-800 pt-6">
               <div>
@@ -1592,11 +1767,11 @@ export default function App() {
               </div>
               <div>
                 <span className="text-lg sm:text-xl font-bold text-white">7-Day</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">Testing Warranty</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Checking Warranty</p>
               </div>
               <div>
-                <span className="text-lg sm:text-xl font-bold text-white">Direct</span>
-                <p className="text-[11px] text-slate-400 mt-0.5">WhatsApp Assistance</p>
+                <span className="text-lg sm:text-xl font-bold text-white">Confirmed</span>
+                <p className="text-[11px] text-slate-400 mt-0.5">COD Order Verification</p>
               </div>
             </div>
           </div>
@@ -1604,7 +1779,7 @@ export default function App() {
           <div className="lg:col-span-5 bg-slate-800/80 rounded-2xl p-6 border border-slate-700">
             <h3 className="text-sm font-semibold text-white">Need Spec Advice or Live Video?</h3>
             <p className="mt-1 text-xs text-slate-400">
-              Message us to get real live videos, battery health reports, and personalized recommendations for your workflow.
+              Message us on WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY}) to get real live videos, battery health reports, and personalized recommendations.
             </p>
             <a
               href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=Hello%20SkillBook,%20I%20want%20to%20see%20live%20pictures%20and%20specs%20of%20available%20laptops.`}
@@ -1613,7 +1788,7 @@ export default function App() {
               className="mt-4 flex items-center justify-center gap-2 w-full rounded-xl bg-emerald-600 py-2.5 text-xs font-semibold text-white hover:bg-emerald-500 transition shadow-sm"
             >
               <WhatsAppIcon className="w-4 h-4" />
-              <span>Connect on WhatsApp</span>
+              <span>Connect on WhatsApp ({OFFICIAL_WHATSAPP_DISPLAY})</span>
             </a>
           </div>
         </div>
@@ -1627,9 +1802,9 @@ export default function App() {
           <span className="text-xl font-extrabold tracking-tight text-slate-800">HP</span>
           <span className="text-xl font-extrabold tracking-tight text-slate-800">DELL</span>
           <span className="text-xl font-extrabold tracking-tight text-slate-800">LENOVO</span>
+          <span className="text-xl font-extrabold tracking-tight text-slate-800">ACER</span>
           <span className="text-xl font-extrabold tracking-tight text-slate-800">APPLE</span>
           <span className="text-xl font-extrabold tracking-tight text-slate-800">SAMSUNG</span>
-          <span className="text-xl font-extrabold tracking-tight text-slate-800">ANKER</span>
         </div>
       </section>
 
@@ -1643,17 +1818,17 @@ export default function App() {
 
             <div className="grid grid-cols-2 gap-3 mt-4">
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Laptop 1:</label>
+                <label className="text-xs font-semibold text-slate-500 block mb-1">Device 1:</label>
                 <select value={compareId1} onChange={(e) => setCompareId1(e.target.value)} className="w-full text-xs border rounded-xl p-2 bg-slate-50">
-                  {products.filter(p => p.category === 'Laptops' || p.category === 'MacBooks').map((p) => (
+                  {products.filter(p => p.category === 'Laptops' || p.category === 'MacBooks' || p.category === 'Chromebooks').map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Laptop 2:</label>
+                <label className="text-xs font-semibold text-slate-500 block mb-1">Device 2:</label>
                 <select value={compareId2} onChange={(e) => setCompareId2(e.target.value)} className="w-full text-xs border rounded-xl p-2 bg-slate-50">
-                  {products.filter(p => p.category === 'Laptops' || p.category === 'MacBooks').map((p) => (
+                  {products.filter(p => p.category === 'Laptops' || p.category === 'MacBooks' || p.category === 'Chromebooks').map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
@@ -1705,7 +1880,7 @@ export default function App() {
             <div className="flex gap-4 border-b border-slate-200 mt-4 text-xs font-semibold overflow-x-auto pb-1">
               <button onClick={() => setActiveTab('overview')} className={`pb-2 ${activeTab === 'overview' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400'}`}>Overview</button>
               <button onClick={() => setActiveTab('specs')} className={`pb-2 ${activeTab === 'specs' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400'}`}>Tech Specs</button>
-              <button onClick={() => setActiveTab('warranty')} className={`pb-2 ${activeTab === 'warranty' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400'}`}>Warranty & Delivery</button>
+              <button onClick={() => setActiveTab('warranty')} className={`pb-2 ${activeTab === 'warranty' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400'}`}>Warranty & COD</button>
               <button onClick={() => setActiveTab('reviews')} className={`pb-2 ${activeTab === 'reviews' ? 'border-b-2 border-slate-900 text-slate-900' : 'text-slate-400'}`}>Reviews ({activeProduct.reviewsCount})</button>
             </div>
 
@@ -1747,8 +1922,8 @@ export default function App() {
 
               {activeTab === 'warranty' && (
                 <div className="p-3 bg-sky-50 text-sky-900 rounded-xl text-xs space-y-1">
-                  <p className="font-bold">✓ 7-Day Testing Warranty</p>
-                  <p className="text-[11px]">Covers motherboard, battery, screen panel, and power adapters across Pakistan with free nationwide parcel inspection.</p>
+                  <p className="font-bold">✓ 7-Day Checking Warranty & Confirmed COD</p>
+                  <p className="text-[11px]">Cash on Delivery (COD) is available strictly for confirmed orders verified by our sales team. Includes 7-day hardware checking warranty across Pakistan.</p>
                 </div>
               )}
 
@@ -1787,7 +1962,7 @@ export default function App() {
               </button>
 
               <a
-                href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=${encodeURIComponent(`Hello SkillBook, I want to order ${activeProduct.name} for ${formatPKR(activeProduct.pricePKR)}`)}`}
+                href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=${encodeURIComponent(`Hello SkillBook, I want to confirm my order for ${activeProduct.name} (${formatPKR(activeProduct.pricePKR)})`)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-10 w-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center hover:bg-emerald-600 transition"
@@ -1812,10 +1987,10 @@ export default function App() {
               {showCheckoutForm ? (
                 <form onSubmit={handlePlaceOrder} className="mt-4 space-y-3">
                   <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-900 text-[11px] leading-tight">
-                    Order confirmation will be routed directly to <strong>{OFFICIAL_EMAIL}</strong>.
+                    <strong>Note:</strong> Cash on Delivery (COD) is valid only after order confirmation by our sales team ({OFFICIAL_WHATSAPP_DISPLAY}).
                   </div>
 
-                  <h4 className="font-bold text-xs uppercase text-slate-900">Cash on Delivery (Pakistan)</h4>
+                  <h4 className="font-bold text-xs uppercase text-slate-900">COD Order Request (Pakistan)</h4>
                   <input
                     type="text"
                     required
@@ -1848,8 +2023,14 @@ export default function App() {
                     placeholder="Complete Delivery Address (House/Shop #, Street, Area)"
                     className="w-full border rounded-xl p-2.5 text-xs"
                   />
+                  <p className="text-[10px] text-slate-500">
+                    By placing this order, you agree to SkillBook's{' '}
+                    <button type="button" onClick={() => setIsTermsOpen(true)} className="text-sky-700 font-bold underline">
+                      Terms & Conditions
+                    </button>.
+                  </p>
                   <button type="submit" className="w-full bg-sky-600 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-sky-500 transition shadow-sm">
-                    Confirm Order & Dispatch Email ({formatPKR(subtotalPKR)})
+                    Submit Order for Confirmation ({formatPKR(subtotalPKR)})
                   </button>
                 </form>
               ) : (
@@ -1887,16 +2068,16 @@ export default function App() {
                   onClick={() => setShowCheckoutForm(true)}
                   className="w-full bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs hover:bg-slate-800 transition"
                 >
-                  Proceed to Checkout (COD)
+                  Proceed to Checkout (COD Confirmed Orders)
                 </button>
                 <a
-                  href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=${encodeURIComponent(`Hello SkillBook, I want to order:\n${cartItems.map(i => `${i.name} (x${i.quantity})`).join('\n')}\n\nTotal: ${formatPKR(subtotalPKR)}`)}`}
+                  href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=${encodeURIComponent(`Hello SkillBook, I want to confirm my order:\n${cartItems.map(i => `${i.name} (x${i.quantity})`).join('\n')}\n\nTotal: ${formatPKR(subtotalPKR)}`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full border border-emerald-500/40 bg-emerald-50 text-emerald-800 py-2 rounded-xl text-xs font-bold hover:bg-emerald-100 transition"
                 >
                   <WhatsAppIcon className="w-4 h-4 text-emerald-600" />
-                  <span>Send Cart to WhatsApp</span>
+                  <span>Confirm Order on WhatsApp</span>
                 </a>
               </div>
             )}
@@ -1908,13 +2089,13 @@ export default function App() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl border border-slate-200">
             <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 font-bold text-lg">✓</div>
-            <h3 className="font-bold text-base text-slate-900">Order Placed Successfully!</h3>
+            <h3 className="font-bold text-base text-slate-900">Order Request Submitted!</h3>
             <p className="text-xs text-slate-500 mt-0.5">Order ID: <strong>{orderConfirmed.orderId}</strong></p>
 
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-left space-y-1.5">
               <p><strong>Customer:</strong> {orderConfirmed.customerName} ({orderConfirmed.customerPhone})</p>
               <p><strong>City / Address:</strong> {orderConfirmed.deliveryAddress}, {orderConfirmed.deliveryCity}</p>
-              <p><strong>Order Routing:</strong> {OFFICIAL_EMAIL}</p>
+              <p><strong>Payment Terms:</strong> COD Only for Confirmed Orders</p>
               <div className="border-t pt-1.5 flex justify-between font-bold">
                 <span>Total Due:</span>
                 <span>{formatPKR(orderConfirmed.totalPKR)}</span>
@@ -1940,6 +2121,10 @@ export default function App() {
         </a>
       </aside>
 
+      {isTermsOpen && (
+        <TermsAndConditionsModal onClose={() => setIsTermsOpen(false)} />
+      )}
+
       {isAdminOpen && (
         <EmbeddedAdminModal
           products={products}
@@ -1955,16 +2140,16 @@ export default function App() {
           <div>
             <span className="font-bold text-lg text-white block">SKILLBOOK</span>
             <p className="mt-2 text-slate-300 text-[11px] leading-relaxed">
-              Transparent hardware procurement for individuals and companies across Pakistan. Verified grade-A testing, honest component checks, and tested warranties.
+              Transparent hardware procurement for individuals and companies across Pakistan. Verified grade-A testing, honest component checks, and reliable customer support.
             </p>
           </div>
 
           <div>
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Inventory Categories</h4>
             <ul className="space-y-1.5 text-slate-300 text-[11px]">
-              <li><a href="#catalog" className="hover:text-white">Business Laptops</a></li>
-              <li><a href="#catalog" className="hover:text-white">Apple MacBooks</a></li>
-              <li><a href="#catalog" className="hover:text-white">ThinkPad Series</a></li>
+              <li><a href="#catalog" onClick={() => setSelectedCategory('Laptops')} className="hover:text-white">Business Laptops</a></li>
+              <li><a href="#catalog" onClick={() => setSelectedCategory('MacBooks')} className="hover:text-white">Apple MacBooks</a></li>
+              <li><a href="#catalog" onClick={() => setSelectedCategory('Chromebooks')} className="hover:text-white">Chromebooks</a></li>
               <li><button onClick={() => setIsCompareModalOpen(true)} className="hover:text-white text-left">Compare Hardware</button></li>
             </ul>
           </div>
@@ -1973,9 +2158,17 @@ export default function App() {
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Customer Commitments</h4>
             <ul className="space-y-1.5 text-slate-300 text-[11px]">
               <li><span>Component Diagnostic Testing</span></li>
-              <li><span>7-Day Replacement Policy</span></li>
-              <li><span>Open Parcel Inspection on Delivery</span></li>
-              <li><span>Safe Nationwide Shipping</span></li>
+              <li><span>7-Day Checking Warranty</span></li>
+              <li><span>COD Only for Confirmed Orders</span></li>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setIsTermsOpen(true)}
+                  className="text-sky-300 font-bold underline hover:text-white transition text-left"
+                >
+                  Read Terms & Conditions
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -1983,7 +2176,8 @@ export default function App() {
             <h4 className="font-bold text-white uppercase tracking-wider text-[11px] mb-3">Direct Contact Desk</h4>
             <p className="text-slate-300 text-[11px] leading-relaxed">
               ✉️ Official Email: <strong className="text-sky-300">{OFFICIAL_EMAIL}</strong> <br />
-              📦 Fulfillment: Nationwide Courier Shipping Across Pakistan
+              📱 WhatsApp: <strong className="text-emerald-300">{OFFICIAL_WHATSAPP_DISPLAY}</strong> <br />
+              📦 Location: Pakistan (Nationwide Courier)
             </p>
           </div>
         </div>
@@ -1991,8 +2185,10 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-[11px] gap-2">
           <p>© 2026 SkillBook. All Rights Reserved. Built with Quality Hardware Standards.</p>
           <div className="flex items-center gap-4">
-            <span>Verified Testing</span>
-            <span>Open Parcel Policy</span>
+            <button type="button" onClick={() => setIsTermsOpen(true)} className="hover:text-white underline">
+              Terms & Conditions
+            </button>
+            <span>COD Confirmed Orders Only</span>
           </div>
         </div>
       </footer>
