@@ -1,4 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+// ==========================================
+// 0. SUPABASE CLOUD CLIENT INITIALIZATION
+// ==========================================
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // ==========================================
 // 1. DATA CONTRACTS & TYPE DEFINITIONS
@@ -63,7 +71,7 @@ const IMG_MAC_TOP = "/1071575305106958970.jfif";
 const IMG_MAC_SIDE = "/1144055111600740759.jfif";
 const IMG_DELL_XPS = "/Dell%20XPS%2015%202-in-1%20review.jfif";
 const IMG_HP_PROBOOK_440 = "/HP%20ProBook%20440%20G11_Processor_Intel%20Core%20Ultra%207...%20(1).jfif";
-const IMG_HP_PROBOOK_450 = "/Hp%20ProBook%20450%20G8_\uFFFDProcessor%20Corei%207%2011th....jfif";
+const IMG_HP_PROBOOK_450 = "/Hp%20ProBook%20450%20G8_%20Processor%20Corei%207%2011th....jfif";
 
 const FALLBACK_LAPTOP = "https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=700&q=80";
 const FALLBACK_MACBOOK = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=700&q=80";
@@ -461,7 +469,6 @@ const BASE_INVENTORY: ProductItem[] = [
   }
 ];
 
-// DEDICATED MARQUEE ARRAYS
 const FEATURED_STREAM_LAPTOPS = [
   { id: 'm-dell-xps', name: 'Dell XPS 15 2-in-1', image: IMG_DELL_XPS, fallback: FALLBACK_DELL },
   { id: 'm-mac-top', name: 'Apple MacBook Pro', image: IMG_MAC_TOP, fallback: FALLBACK_MACBOOK },
@@ -497,7 +504,7 @@ const WhatsAppIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
 );
 
 // ==========================================
-// 6. ENHANCED ADMIN PANEL (ADD + EDIT ENGINE)
+// 6. CLOUD-SYNCED ADMIN PANEL
 // ==========================================
 function EmbeddedAdminModal({
   products,
@@ -507,13 +514,12 @@ function EmbeddedAdminModal({
   onClose
 }: {
   products: ProductItem[];
-  onAddProduct: (newProduct: ProductItem) => void;
-  onUpdateProduct: (updatedProduct: ProductItem) => void;
-  onDeleteProduct: (id: string) => void;
+  onAddProduct: (newProduct: ProductItem) => Promise<void>;
+  onUpdateProduct: (updatedProduct: ProductItem) => Promise<void>;
+  onDeleteProduct: (id: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
-
   const [name, setName] = useState('');
   const [brand, setBrand] = useState<'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung'>('HP');
   const [category, setCategory] = useState<'Laptops' | 'MacBooks' | 'Accessories'>('Laptops');
@@ -523,12 +529,14 @@ function EmbeddedAdminModal({
   const [storage, setStorage] = useState('');
   const [screen, setScreen] = useState('');
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleStartEdit = (product: ProductItem) => {
     setEditingId(product.id);
     setName(product.name || '');
-    setBrand((product.brand as any) || 'HP');
-    setCategory((product.category as any) || 'Laptops');
+    setBrand((product.brand as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung') || 'HP');
+    setCategory((product.category as 'Laptops' | 'MacBooks' | 'Accessories') || 'Laptops');
     setPrice(product.pricePKR || '');
     setCpu(product.specs?.cpu || '');
     setRam(product.specs?.ram || '');
@@ -548,79 +556,113 @@ function EmbeddedAdminModal({
     setImagePreview('');
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 3 * 1024 * 1024) {
-      alert('Tasveer ka size 3MB se zyada hai. Choti image select karein.');
+    if (!supabase) {
+      alert('Cloud Storage configured nahi hai (.env keys check karein).');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+      setImagePreview(data.publicUrl);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown upload error';
+      alert('Tasveer upload fail ho gayi: ' + message);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isUploading) {
+      alert('Tasveer abhi cloud par upload ho rahi hai, 2 second intezar karein.');
+      return;
+    }
     if (!name.trim() || !price || !imagePreview) {
       alert('Product Name, Price aur Image lazmi add karein.');
       return;
     }
 
-    if (editingId) {
-      const existingProduct = products.find(p => p.id === editingId);
-      const updatedProd: ProductItem = {
-        ...existingProduct!,
-        id: editingId,
-        name: name.trim(),
-        brand: brand as any,
-        category: category as any,
-        pricePKR: Number(price) || 0,
-        image: imagePreview,
-        galleryImages: [imagePreview],
-        specs: {
-          cpu: cpu.trim() || existingProduct?.specs?.cpu || 'Core i5',
-          ram: ram.trim() || existingProduct?.specs?.ram || '16GB RAM',
-          storage: storage.trim() || existingProduct?.specs?.storage || '512GB SSD',
-          screen: screen.trim() || existingProduct?.specs?.screen || '14.1" Full HD'
-        }
-      };
+    try {
+      setIsSaving(true);
+      if (editingId) {
+        const existingProduct = products.find(p => p.id === editingId);
+        const updatedProd: ProductItem = {
+          id: editingId,
+          name: name.trim(),
+          brand: brand,
+          category: category,
+          pricePKR: Number(price) || 0,
+          originalPricePKR: existingProduct?.originalPricePKR,
+          rating: existingProduct?.rating || 5.0,
+          reviewsCount: existingProduct?.reviewsCount || 1,
+          condition: existingProduct?.condition || 'Certified Refurbished',
+          image: imagePreview,
+          galleryImages: [imagePreview],
+          description: existingProduct?.description || `Tested Grade-A ${brand} corporate device.`,
+          highlights: existingProduct?.highlights || ['Diagnostic Tested', 'Original Screen'],
+          specs: {
+            cpu: cpu.trim() || existingProduct?.specs?.cpu || 'Core i5',
+            ram: ram.trim() || existingProduct?.specs?.ram || '16GB RAM',
+            storage: storage.trim() || existingProduct?.specs?.storage || '512GB SSD',
+            screen: screen.trim() || existingProduct?.specs?.screen || '14.1" Full HD'
+          },
+          stockCount: existingProduct?.stockCount || 5,
+          featured: existingProduct?.featured ?? true,
+          reviewsList: existingProduct?.reviewsList || []
+        };
 
-      onUpdateProduct(updatedProd);
-      alert('Product details aur photo kamyabi se update ho gayi!');
-      handleCancelEdit();
-    } else {
-      const newProd: ProductItem = {
-        id: `custom-${Date.now()}`,
-        name: name.trim(),
-        brand: brand as any,
-        category: category as any,
-        pricePKR: Number(price) || 0,
-        rating: 5.0,
-        reviewsCount: 1,
-        condition: 'Certified Refurbished',
-        image: imagePreview,
-        galleryImages: [imagePreview],
-        description: `Tested Grade-A ${brand} corporate device configured for office productivity and programming.`,
-        highlights: ['Diagnostic Tested', 'Original Screen', 'Tested Battery Cycles'],
-        specs: {
-          cpu: cpu.trim() || 'Core i5 Processor',
-          ram: ram.trim() || '16GB RAM',
-          storage: storage.trim() || '512GB NVMe SSD',
-          screen: screen.trim() || '14.1" Full HD'
-        },
-        stockCount: 5,
-        featured: true,
-        reviewsList: []
-      };
+        await onUpdateProduct(updatedProd);
+        alert('✓ Live Storefront par product aur photo update ho gayi!');
+        handleCancelEdit();
+      } else {
+        const newProd: ProductItem = {
+          id: `prod-${Date.now()}`,
+          name: name.trim(),
+          brand: brand,
+          category: category,
+          pricePKR: Number(price) || 0,
+          rating: 5.0,
+          reviewsCount: 1,
+          condition: 'Certified Refurbished',
+          image: imagePreview,
+          galleryImages: [imagePreview],
+          description: `Tested Grade-A ${brand} corporate device configured for office productivity and programming.`,
+          highlights: ['Diagnostic Tested', 'Original Screen', 'Tested Battery Cycles'],
+          specs: {
+            cpu: cpu.trim() || 'Core i5 Processor',
+            ram: ram.trim() || '16GB RAM',
+            storage: storage.trim() || '512GB NVMe SSD',
+            screen: screen.trim() || '14.1" Full HD'
+          },
+          stockCount: 5,
+          featured: true,
+          reviewsList: []
+        };
 
-      onAddProduct(newProd);
-      alert('Nayi product store mein add ho gayi!');
-      handleCancelEdit();
+        await onAddProduct(newProd);
+        alert('✓ Nayi product live website par publish ho gayi!');
+        handleCancelEdit();
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -641,11 +683,16 @@ function EmbeddedAdminModal({
       <div className="bg-white w-full max-w-3xl rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-2xl max-h-[92vh] overflow-y-auto">
         <div className="flex justify-between items-center pb-4 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              SkillBook Inventory Manager
-            </h2>
-            <p className="text-xs text-slate-500">
-              Yahan se nayi product add karein ya neeche list se kisi bhi product ko edit/update karein.
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                SkillBook Cloud Inventory Manager
+              </h2>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${supabase ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700'}`}>
+                {supabase ? '● Live Cloud Connected' : '○ Offline'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Yahan se ki gayi har tabdeeli foran sab mobiles aur laptops par live update hoti hai.
             </p>
           </div>
           <button 
@@ -660,7 +707,7 @@ function EmbeddedAdminModal({
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-sky-700">
-              {editingId ? '✏️ 1. Edit / Update Selected Product' : '➕ 1. Nayi Product Add Karein'}
+              {editingId ? '✏️ 1. Edit / Update Selected Product' : '➕ 1. Nayi Product Live Publish Karein'}
             </h3>
             {editingId && (
               <button
@@ -702,7 +749,7 @@ function EmbeddedAdminModal({
               <label className="text-[11px] font-semibold text-slate-600 block mb-1">Brand</label>
               <select
                 value={brand}
-                onChange={(e) => setBrand(e.target.value as any)}
+                onChange={(e) => setBrand(e.target.value as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Samsung')}
                 className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600 bg-white"
               >
                 <option value="HP">HP</option>
@@ -717,7 +764,7 @@ function EmbeddedAdminModal({
               <label className="text-[11px] font-semibold text-slate-600 block mb-1">Category</label>
               <select
                 value={category}
-                onChange={(e) => setCategory(e.target.value as any)}
+                onChange={(e) => setCategory(e.target.value as 'Laptops' | 'MacBooks' | 'Accessories')}
                 className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600 bg-white"
               >
                 <option value="Laptops">Laptops</option>
@@ -760,17 +807,23 @@ function EmbeddedAdminModal({
 
           <div className="p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
             <label className="text-xs font-bold text-slate-800 block mb-1">
-              {editingId ? 'Photo Change Karein (Agar badalna chahein):' : 'Upload Real Photo (Phone / PC File):'}
+              {editingId ? 'Photo Change Karein (Cloud Upload):' : 'Upload Real Photo (Phone Camera / Gallery):'}
             </label>
             <input
               type="file"
               accept="image/*"
+              disabled={isUploading}
               onChange={handleImageUpload}
-              className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer"
+              className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer disabled:opacity-50"
             />
-            {imagePreview && (
+            {isUploading && (
+              <p className="mt-2 text-xs font-bold text-sky-600 animate-pulse">
+                ⏳ Tasveer cloud server par upload ho rahi hai...
+              </p>
+            )}
+            {imagePreview && !isUploading && (
               <div className="mt-3 flex items-center gap-3">
-                <span className="text-[11px] text-emerald-600 font-bold">✓ Active Photo:</span>
+                <span className="text-[11px] text-emerald-600 font-bold">✓ Cloud Photo Ready:</span>
                 <img src={imagePreview} alt="Preview" className="h-16 w-20 object-contain bg-white rounded-lg p-1 border border-slate-200" />
               </div>
             )}
@@ -778,11 +831,12 @@ function EmbeddedAdminModal({
 
           <button
             type="submit"
-            className={`w-full py-2.5 rounded-xl font-bold text-xs transition active:scale-95 shadow-sm text-white ${
+            disabled={isUploading || isSaving}
+            className={`w-full py-2.5 rounded-xl font-bold text-xs transition active:scale-95 shadow-sm text-white disabled:opacity-50 ${
               editingId ? 'bg-sky-600 hover:bg-sky-500' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
-            {editingId ? '✓ Update Product Details' : '+ Add Product to Store'}
+            {isSaving ? 'Saving to Cloud...' : editingId ? '✓ Update Live Product' : '+ Publish Product to Live Store'}
           </button>
         </form>
 
@@ -796,7 +850,7 @@ function EmbeddedAdminModal({
               onClick={handleExportJSON}
               className="text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200 px-3 py-1.5 rounded-xl hover:bg-sky-100 transition"
             >
-              📥 Export Inventory JSON
+              📥 Export Backup JSON
             </button>
           </div>
 
@@ -813,7 +867,7 @@ function EmbeddedAdminModal({
                   <div key={p?.id || Math.random().toString()} className="py-2.5 flex items-center justify-between text-xs px-2 hover:bg-white rounded-xl transition">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img 
-                        src={p?.image || 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?auto=format&fit=crop&w=100&q=80'} 
+                        src={p?.image || FALLBACK_LAPTOP} 
                         alt={p?.name || 'Item'} 
                         className="h-9 w-9 object-contain rounded bg-white p-0.5 border" 
                       />
@@ -834,9 +888,9 @@ function EmbeddedAdminModal({
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          if (confirm(`Kya aap "${p.name}" ko delete karna chahte hain?`)) {
-                            onDeleteProduct(p.id);
+                        onClick={async () => {
+                          if (confirm(`Kya aap "${p.name}" ko live store se delete karna chahte hain?`)) {
+                            await onDeleteProduct(p.id);
                           }
                         }}
                         className="text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 font-bold px-2.5 py-1 rounded-lg transition"
@@ -859,23 +913,34 @@ function EmbeddedAdminModal({
 // 7. MAIN APPLICATION ROOT COMPONENT
 // ==========================================
 export default function App() {
-  const [products, setProducts] = useState<ProductItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('skillbook_custom_inventory');
-      if (saved && saved !== 'undefined' && saved !== 'null') {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn("Cleared corrupted inventory cache automatically", e);
+  const [products, setProducts] = useState<ProductItem[]>(BASE_INVENTORY);
+  const [deletedIds, setDeletedIds] = useState<string[]>([]);
+
+  // Fetch & Merge Live Cloud Products on Mount
+  useEffect(() => {
+    const syncCloudProducts = async () => {
+      if (!supabase) return;
       try {
-        localStorage.removeItem('skillbook_custom_inventory');
-      } catch {}
-    }
-    return BASE_INVENTORY;
-  });
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const cloudItems = data as ProductItem[];
+          const cloudIds = new Set(cloudItems.map(item => item.id));
+          const remainingBase = BASE_INVENTORY.filter(
+            baseItem => !cloudIds.has(baseItem.id) && !deletedIds.includes(baseItem.id)
+          );
+          setProducts([...cloudItems, ...remainingBase]);
+        }
+      } catch (err) {
+        console.error('Cloud sync failed, showing base catalog:', err);
+      }
+    };
+
+    syncCloudProducts();
+  }, [deletedIds]);
 
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -883,7 +948,6 @@ export default function App() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [maxPrice, setMaxPrice] = useState<number>(600000);
   const [sortBy, setSortBy] = useState<string>('featured');
-
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
 
   useEffect(() => {
@@ -893,11 +957,7 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // =========================================================================
-  // SECURE DUAL ADMIN TRIGGER: ?admin=true in URL & Ctrl + Shift + A Shortcut
-  // =========================================================================
   useEffect(() => {
-    // 1. Direct Secret Link Access (e.g., http://localhost:5173/?admin=true)
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('admin') === 'true') {
       const pin = prompt('Enter Secure Admin PIN:');
@@ -906,11 +966,9 @@ export default function App() {
       } else if (pin !== null) {
         alert('Invalid Admin PIN.');
       }
-      // Remove query param from address bar smoothly
       window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    // 2. Secret Keyboard Shortcut (Ctrl + Shift + A)
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault();
@@ -927,7 +985,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Modals & States
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [compareId1, setCompareId1] = useState<string>('hp-probook-440-g11-ultra7');
   const [compareId2, setCompareId2] = useState<string>('dell-xps-15-9530');
@@ -950,36 +1007,34 @@ export default function App() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [orderConfirmed, setOrderConfirmed] = useState<OrderReceipt | null>(null);
 
-  // 1. ADD Product Callback
-  const handleAddProduct = (newProd: ProductItem) => {
-    const updated = [newProd, ...products];
-    setProducts(updated);
-    try {
-      localStorage.setItem('skillbook_custom_inventory', JSON.stringify(updated));
-    } catch (e) {
-      console.warn("Storage quota exceeded", e);
+  const handleAddProduct = async (newProd: ProductItem) => {
+    setProducts(prev => [newProd, ...prev]);
+    if (supabase) {
+      const { error } = await supabase.from('products').insert([newProd]);
+      if (error) {
+        alert('Cloud database save error: ' + error.message);
+      }
     }
   };
 
-  // 2. UPDATE Product Callback
-  const handleUpdateProduct = (updatedProduct: ProductItem) => {
-    const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
-    setProducts(updated);
-    try {
-      localStorage.setItem('skillbook_custom_inventory', JSON.stringify(updated));
-    } catch (e) {
-      console.warn("Storage quota exceeded", e);
+  const handleUpdateProduct = async (updatedProduct: ProductItem) => {
+    setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    if (supabase) {
+      const { error } = await supabase.from('products').upsert([updatedProduct]);
+      if (error) {
+        alert('Cloud database update error: ' + error.message);
+      }
     }
   };
 
-  // 3. DELETE Product Callback
-  const handleDeleteProduct = (id: string) => {
-    const updated = products.filter(p => p.id !== id);
-    setProducts(updated);
-    try {
-      localStorage.setItem('skillbook_custom_inventory', JSON.stringify(updated));
-    } catch (e) {
-      console.warn("Storage quota exceeded", e);
+  const handleDeleteProduct = async (id: string) => {
+    setDeletedIds(prev => [...prev, id]);
+    setProducts(prev => prev.filter(p => p.id !== id));
+    if (supabase) {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) {
+        alert('Cloud delete error: ' + error.message);
+      }
     }
   };
 
@@ -1144,8 +1199,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-800 pb-20 md:pb-12 antialiased font-sans">
-      
-      {/* 1. TOP UTILITY STRIP */}
       <div className="hidden md:block bg-slate-900 text-slate-200 text-xs py-2 px-4 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-[11px]">
           <div className="flex items-center gap-3">
@@ -1161,11 +1214,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. COMPACT SINGLE-ROW HEADER (NO EXTRA SEARCH ROW) */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 py-2 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-          
-          {/* Logo on Left */}
           <div onClick={resetFilters} className="flex items-center cursor-pointer select-none -ml-2 sm:-ml-1 group shrink-0">
             <div className="relative h-11 sm:h-13 w-auto flex items-center overflow-visible">
               <img 
@@ -1182,7 +1232,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Inline Compact Search Box between Logo and Cart */}
           <div className="flex-1 max-w-[260px] sm:max-w-md mx-1 sm:mx-4">
             <div className="relative w-full">
               <input
@@ -1195,7 +1244,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* Header Action Items */}
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <button
               onClick={() => setIsCompareModalOpen(true)}
@@ -1219,7 +1267,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* 3. HERO BANNER */}
       <section className="store-hero pt-2 pb-6 md:py-12 px-4 border-b border-slate-200/80 overflow-hidden">
         <div className="store-hero__inner !p-0 md:!p-6">
           <div className="store-hero__content !min-h-0 gap-3 md:gap-8">
@@ -1280,7 +1327,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 4. FOUR SERVICE TRUST BADGES STRIP */}
       <section className="max-w-7xl mx-auto px-4 py-5 w-full">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           <div className="p-3 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-center sm:text-left">
@@ -1302,7 +1348,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 5. BALANCED DUAL MARQUEE */}
       <section className="px-4 pt-1 max-w-6xl mx-auto w-full">
         <div className="rounded-2xl bg-white p-3 border border-slate-200/80 shadow-xs overflow-hidden">
           <span className="text-[10px] uppercase font-bold text-sky-700 tracking-wider block mb-2">Featured Hardware Collection</span>
@@ -1339,7 +1384,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 6. SWIPEABLE CATEGORY PILLS */}
       <section className="px-4 pt-5 max-w-7xl mx-auto w-full">
         <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-slate-200">
           {CATEGORIES.map((cat) => (
@@ -1356,7 +1400,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 7. MAIN SHOPPING CATALOG */}
       <main id="catalog" className="px-4 pt-5 max-w-7xl mx-auto w-full flex-1">
         <div className="flex items-center justify-between gap-4 pb-4">
           <span className="text-xs font-medium text-slate-500">
@@ -1484,7 +1527,6 @@ export default function App() {
         </div>
       </main>
 
-      {/* 8. AUTHENTIC VALUE PROPOSITION */}
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 w-full border-t border-slate-200 mt-10">
         <div className="text-center max-w-xl mx-auto">
           <span className="text-xs font-bold uppercase tracking-wider text-sky-600">
@@ -1531,7 +1573,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 9. HONEST ABOUT US SECTION */}
       <section className="bg-slate-900 text-white py-12 px-4 sm:px-6 lg:px-8 mt-10">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <div className="lg:col-span-7">
@@ -1578,7 +1619,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 10. AUTHORIZED BRAND LOGOS */}
       <section className="max-w-7xl mx-auto px-4 py-8 w-full border-t border-slate-200 mt-10">
         <span className="text-center block text-xs font-bold uppercase tracking-wider text-slate-400 mb-6">
           Hardware Platforms Supported
@@ -1593,7 +1633,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* 11. SIDE-BY-SIDE LAPTOP COMPARISON MODAL */}
       {isCompareModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white w-full max-w-2xl rounded-2xl p-5 border border-slate-200 shadow-2xl max-h-[92vh] overflow-y-auto">
@@ -1643,7 +1682,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 12. PRODUCT DETAILS MODAL */}
       {activeProduct && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-2xl max-h-[90vh] overflow-y-auto p-5 border border-slate-200 shadow-2xl">
@@ -1762,7 +1800,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 13. SLIDE-OVER CART DRAWER & COD */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/60 backdrop-blur-xs">
           <div className="w-full max-w-md bg-white h-full p-5 flex flex-col justify-between shadow-2xl">
@@ -1867,7 +1904,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 14. DIGITAL PRINTABLE RECEIPT MODAL */}
       {orderConfirmed && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl border border-slate-200">
@@ -1892,7 +1928,6 @@ export default function App() {
         </div>
       )}
 
-      {/* 15. ICON-ONLY FLOATING WHATSAPP BUTTON */}
       <aside aria-label="Support WhatsApp" className="fixed bottom-6 right-4 z-20">
         <a
           href={`https://wa.me/${OFFICIAL_WHATSAPP_INT}?text=Hello%20SkillBook,%20I%20have%20an%20inquiry%20regarding%20a%20laptop.`}
@@ -1905,7 +1940,6 @@ export default function App() {
         </a>
       </aside>
 
-      {/* 16. CLIENT ADMIN PANEL MODAL (FULL CRUD: ADD + EDIT + LIVE IMAGE) */}
       {isAdminOpen && (
         <EmbeddedAdminModal
           products={products}
@@ -1916,7 +1950,6 @@ export default function App() {
         />
       )}
 
-      {/* 17. COMPLETE ENTERPRISE FOOTER (100% CLEAN - NO PUBLIC ADMIN BUTTON) */}
       <footer className="mt-auto bg-[#1b4353] text-white pt-12 pb-8 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-white/10">
           <div>
@@ -1957,11 +1990,9 @@ export default function App() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-[11px] gap-2">
           <p>© 2026 SkillBook. All Rights Reserved. Built with Quality Hardware Standards.</p>
-          
           <div className="flex items-center gap-4">
             <span>Verified Testing</span>
             <span>Open Parcel Policy</span>
-            {/* Public footer completely clean */}
           </div>
         </div>
       </footer>
