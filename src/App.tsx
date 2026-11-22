@@ -701,6 +701,7 @@ function EmbeddedAdminModal({
   const [storage, setStorage] = useState('');
   const [screen, setScreen] = useState('');
   const [imagePreview, setImagePreview] = useState<string>('');
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -715,6 +716,7 @@ function EmbeddedAdminModal({
     setStorage(product.specs?.storage || '');
     setScreen(product.specs?.screen || '');
     setImagePreview(product.image || '');
+    setGalleryPreviews(product.galleryImages && product.galleryImages.length > 0 ? product.galleryImages : (product.image ? [product.image] : []));
   };
 
   const handleCancelEdit = () => {
@@ -726,39 +728,61 @@ function EmbeddedAdminModal({
     setStorage('');
     setScreen('');
     setImagePreview('');
+    setGalleryPreviews([]);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
     if (!supabase) {
       alert('Cloud Storage configured nahi hai (.env keys check karein).');
       return;
     }
 
+    const remaining = 10 - galleryPreviews.length;
+    if (remaining <= 0) {
+      alert('Aik product ki zyada se zyada 10 photos add ho sakti hain.');
+      return;
+    }
+    const filesToUpload = files.slice(0, remaining);
+
     try {
       setIsUploading(true);
-      const fileExt = file.name.split('.').pop() || 'jpg';
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      const uploadedUrls: string[] = [];
+      for (const file of filesToUpload) {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
-      if (uploadError) throw uploadError;
+        if (uploadError) throw uploadError;
 
-      const { data } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
+        const { data } = supabase.storage
+          .from('product-images')
+          .getPublicUrl(fileName);
 
-      setImagePreview(data.publicUrl);
+        uploadedUrls.push(data.publicUrl);
+      }
+
+      const updatedGallery = [...galleryPreviews, ...uploadedUrls].slice(0, 10);
+      setGalleryPreviews(updatedGallery);
+      setImagePreview(updatedGallery[0] || '');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown upload error';
       alert('Tasveer upload fail ho gayi: ' + message);
     } finally {
       setIsUploading(false);
+      e.target.value = '';
     }
+  };
+
+  const handleRemoveGalleryImage = (index: number) => {
+    const updatedGallery = galleryPreviews.filter((_, i) => i !== index);
+    setGalleryPreviews(updatedGallery);
+    setImagePreview(updatedGallery[0] || '');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -767,7 +791,7 @@ function EmbeddedAdminModal({
       alert('Tasveer abhi cloud par upload ho rahi hai, 2 second intezar karein.');
       return;
     }
-    if (!name.trim() || !price || !imagePreview) {
+    if (!name.trim() || !price || galleryPreviews.length === 0) {
       alert('Product Name, Price aur Image lazmi add karein.');
       return;
     }
@@ -786,8 +810,8 @@ function EmbeddedAdminModal({
           rating: existingProduct?.rating || 5.0,
           reviewsCount: existingProduct?.reviewsCount || 1,
           condition: existingProduct?.condition || 'Certified Refurbished',
-          image: imagePreview,
-          galleryImages: [imagePreview],
+          image: galleryPreviews[0] || imagePreview,
+          galleryImages: galleryPreviews.length > 0 ? galleryPreviews : [imagePreview],
           description: existingProduct?.description || `Tested Grade-A ${brand} corporate device.`,
           highlights: existingProduct?.highlights || ['Diagnostic Tested', 'Original Screen'],
           specs: {
@@ -814,8 +838,8 @@ function EmbeddedAdminModal({
           rating: 5.0,
           reviewsCount: 1,
           condition: 'Certified Refurbished',
-          image: imagePreview,
-          galleryImages: [imagePreview],
+          image: galleryPreviews[0] || imagePreview,
+          galleryImages: galleryPreviews.length > 0 ? galleryPreviews : [imagePreview],
           description: `Tested Grade-A ${brand} corporate device configured for office productivity and programming.`,
           highlights: ['Diagnostic Tested', 'Original Screen', 'Tested Battery Cycles'],
           specs: {
@@ -982,11 +1006,12 @@ function EmbeddedAdminModal({
 
           <div className="p-3.5 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
             <label className="text-xs font-bold text-slate-800 block mb-1">
-              {editingId ? 'Photo Change Karein (Cloud Upload):' : 'Upload Real Photo (Phone Camera / Gallery):'}
+              {editingId ? 'Photos Change Karein — up to 10 (Cloud Upload):' : 'Upload Real Photos — up to 10 (Phone Camera / Gallery):'}
             </label>
             <input
               type="file"
               accept="image/*"
+              multiple
               disabled={isUploading}
               onChange={handleImageUpload}
               className="text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer disabled:opacity-50"
@@ -996,10 +1021,18 @@ function EmbeddedAdminModal({
                 ⏳ Tasveer cloud server par upload ho rahi hai...
               </p>
             )}
-            {imagePreview && !isUploading && (
-              <div className="mt-3 flex items-center gap-3">
-                <span className="text-[11px] text-emerald-600 font-bold">✓ Cloud Photo Ready:</span>
-                <img src={imagePreview} alt="Preview" className="h-16 w-20 object-contain bg-white rounded-lg p-1 border border-slate-200" />
+            {galleryPreviews.length > 0 && !isUploading && (
+              <div className="mt-3">
+                <span className="text-[11px] text-emerald-600 font-bold block mb-2">✓ Cloud Photos Ready ({galleryPreviews.length}/10) — pehli photo main photo hai:</span>
+                <div className="flex flex-wrap gap-2">
+                  {galleryPreviews.map((img, idx) => (
+                    <div key={idx} className="relative">
+                      <img src={img} alt={`Photo ${idx + 1}`} className="h-16 w-20 object-contain bg-white rounded-lg p-1 border border-slate-200" />
+                      {idx === 0 && <span className="absolute -top-1.5 -left-1.5 bg-sky-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">Main</span>}
+                      <button type="button" onClick={() => handleRemoveGalleryImage(idx)} aria-label={`Remove photo ${idx + 1}`} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center">✕</button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1392,11 +1425,11 @@ export default function App() {
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 py-2 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           <div onClick={resetFilters} className="flex items-center cursor-pointer select-none -ml-2 sm:-ml-1 group shrink-0">
-            <div className="relative h-11 sm:h-13 w-auto flex items-center overflow-visible">
+            <div className="relative h-11 sm:h-20 w-auto flex items-center overflow-visible">
               <img 
                 src="/skillbook.png" 
                 alt="SKILLBOOK" 
-                className="h-full w-auto max-w-[140px] sm:max-w-[200px] object-contain scale-125 origin-left transition duration-200 group-hover:scale-130"
+                className="h-full w-auto max-w-[140px] sm:max-w-[300px] object-contain scale-125 origin-left transition duration-200 group-hover:scale-130"
                 onError={(e) => {
                   const target = e.currentTarget;
                   if (!target.src.includes('skillbook-logo')) {
@@ -1867,9 +1900,40 @@ export default function App() {
               <button onClick={() => setActiveProduct(null)} className="text-slate-400 font-bold p-1 text-sm hover:text-slate-700">✕</button>
             </div>
 
-            <div className="aspect-video bg-slate-50 rounded-xl my-3 p-3 flex items-center justify-center">
-              <img src={selectedImage || activeProduct.image} alt={activeProduct.name} className="h-full object-contain" />
-            </div>
+            {(() => {
+              const gallery = (activeProduct.galleryImages && activeProduct.galleryImages.length > 0) ? activeProduct.galleryImages : [activeProduct.image];
+              const currentIndex = Math.max(0, gallery.indexOf(selectedImage || activeProduct.image));
+              const goTo = (idx: number) => setSelectedImage(gallery[(idx + gallery.length) % gallery.length]);
+              return (
+                <div>
+                  <div className="relative aspect-video bg-slate-50 rounded-xl my-3 p-3 flex items-center justify-center">
+                    <img src={selectedImage || activeProduct.image} alt={activeProduct.name} className="h-full object-contain" />
+                    {gallery.length > 1 && (
+                      <>
+                        <button type="button" onClick={() => goTo(currentIndex - 1)} aria-label="Previous image" className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center text-slate-700 font-bold">‹</button>
+                        <button type="button" onClick={() => goTo(currentIndex + 1)} aria-label="Next image" className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center text-slate-700 font-bold">›</button>
+                      </>
+                    )}
+                  </div>
+                  {gallery.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {gallery.map((img, idx) => (
+                        <button key={idx} type="button" onClick={() => setSelectedImage(img)} aria-label={`View image ${idx + 1}`} className={`shrink-0 h-14 w-16 rounded-lg border-2 overflow-hidden bg-slate-50 ${idx === currentIndex ? 'border-sky-600' : 'border-slate-200'}`}>
+                          <img src={img} alt={`${activeProduct.name} ${idx + 1}`} className="h-full w-full object-contain" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {gallery.length > 1 && (
+                    <div className="flex justify-center gap-1.5 mt-1.5">
+                      {gallery.map((_, idx) => (
+                        <button key={idx} type="button" onClick={() => setSelectedImage(gallery[idx])} aria-label={`Go to image ${idx + 1}`} className={`h-1.5 w-1.5 rounded-full ${idx === currentIndex ? 'bg-slate-900' : 'bg-slate-300'}`} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             <h2 className="text-base font-bold text-slate-900">{activeProduct.name}</h2>
             <div className="flex items-center gap-2 mt-1">
@@ -1887,6 +1951,27 @@ export default function App() {
             <div className="mt-3.5 text-xs">
               {activeTab === 'overview' && (
                 <div className="space-y-3">
+                  <div>
+                    <h4 className="font-bold text-slate-900 mb-1.5">Specification:</h4>
+                    <div className="bg-slate-50 rounded-xl p-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Processor (CPU)</span>
+                        <span className="font-semibold text-slate-800">{activeProduct.specs?.cpu || 'Standard Processor'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">RAM Memory</span>
+                        <span className="font-semibold text-slate-800">{activeProduct.specs?.ram || '16GB'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Storage (SSD / ROM)</span>
+                        <span className="font-semibold text-slate-800">{activeProduct.specs?.storage || '512GB SSD'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-medium">Display Screen</span>
+                        <span className="font-semibold text-slate-800">{activeProduct.specs?.screen || '14.1 Full HD'}</span>
+                      </div>
+                    </div>
+                  </div>
                   <p className="text-slate-600 leading-relaxed text-xs">{activeProduct.description}</p>
                   <div>
                     <h4 className="font-bold text-slate-900 mb-1.5">Key Highlights:</h4>
