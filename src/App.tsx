@@ -857,6 +857,9 @@ function EmbeddedAdminModal({
         alert('✓ Nayi product live website par publish ho gayi!');
         handleCancelEdit();
       }
+    } catch (err) {
+      // Save actually failed (database error) — never show the success message.
+      alert('Save nahi hui — database error ki wajah se product update nahi hua. Dobara try karein.');
     } finally {
       setIsSaving(false);
     }
@@ -1221,6 +1224,7 @@ export default function App() {
       const { error } = await supabase.from('products').insert([newProd]);
       if (error) {
         alert('Cloud database save error: ' + error.message);
+        throw error;
       }
     }
   };
@@ -1228,9 +1232,21 @@ export default function App() {
   const handleUpdateProduct = async (updatedProduct: ProductItem) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     if (supabase) {
-      const { error } = await supabase.from('products').upsert([updatedProduct]);
+      // upsert() fails with 409 duplicate-key on existing rows, so use
+      // update() for existing cloud rows instead.
+      const { id, ...fields } = updatedProduct;
+      const { data, error } = await supabase.from('products').update(fields).eq('id', id).select();
       if (error) {
         alert('Cloud database update error: ' + error.message);
+        throw error;
+      }
+      // No cloud row yet (product only exists in BASE_INVENTORY) — insert it.
+      if (!data || data.length === 0) {
+        const { error: insertError } = await supabase.from('products').insert([updatedProduct]);
+        if (insertError) {
+          alert('Cloud database save error: ' + insertError.message);
+          throw insertError;
+        }
       }
     }
   };
