@@ -1759,7 +1759,7 @@ export default function App() {
                   </button>
 
                   <div onClick={() => openProductDetails(p)} className="relative aspect-4/3 w-full bg-slate-50 p-2 sm:p-3 flex items-center justify-center cursor-pointer">
-                    <span className="absolute left-2.5 top-2.5 bg-white px-2.5 py-1 text-[12px] sm:text-[13px] font-extrabold text-slate-700 border border-slate-200 rounded-lg shadow-xs">
+                    <span className="absolute left-2.5 top-2.5 bg-slate-900 px-3 py-1 text-[13px] sm:text-sm font-extrabold text-white border border-slate-900 rounded-lg shadow">
                       {p.brand}
                     </span>
                     <img 
