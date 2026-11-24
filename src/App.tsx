@@ -40,6 +40,7 @@ export interface ProductItem {
     screen: string;
     gpu?: string;
     ports?: string;
+    deleted?: boolean;
   };
   stockCount: number;
   featured?: boolean;
@@ -702,6 +703,7 @@ function EmbeddedAdminModal({
   const [screen, setScreen] = useState('');
   const [imagePreview, setImagePreview] = useState<string>('');
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+  const [stock, setStock] = useState<number | string>(5);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -711,6 +713,7 @@ function EmbeddedAdminModal({
     setBrand((product.brand as 'HP' | 'Dell' | 'Lenovo' | 'Apple' | 'Acer' | 'Samsung') || 'HP');
     setCategory((product.category as 'Laptops' | 'MacBooks' | 'Chromebooks' | 'Smartphones' | 'Accessories') || 'Laptops');
     setPrice(product.pricePKR || '');
+    setStock(product.stockCount ?? 5);
     setCpu(product.specs?.cpu || '');
     setRam(product.specs?.ram || '');
     setStorage(product.specs?.storage || '');
@@ -723,6 +726,7 @@ function EmbeddedAdminModal({
     setEditingId(null);
     setName('');
     setPrice('');
+    setStock(5);
     setCpu('');
     setRam('');
     setStorage('');
@@ -818,9 +822,10 @@ function EmbeddedAdminModal({
             cpu: cpu.trim() || existingProduct?.specs?.cpu || 'Core i5',
             ram: ram.trim() || existingProduct?.specs?.ram || '16GB RAM',
             storage: storage.trim() || existingProduct?.specs?.storage || '512GB SSD',
-            screen: screen.trim() || existingProduct?.specs?.screen || '14.1" Full HD'
+            screen: screen.trim() || existingProduct?.specs?.screen || '14.1" Full HD',
+            deleted: existingProduct?.specs?.deleted
           },
-          stockCount: existingProduct?.stockCount || 5,
+          stockCount: Number(stock) || 0,
           featured: existingProduct?.featured ?? true,
           reviewsList: existingProduct?.reviewsList || []
         };
@@ -848,7 +853,7 @@ function EmbeddedAdminModal({
             storage: storage.trim() || '512GB NVMe SSD',
             screen: screen.trim() || '14.1" Full HD'
           },
-          stockCount: 5,
+          stockCount: Number(stock) || 0,
           featured: true,
           reviewsList: []
         };
@@ -857,8 +862,21 @@ function EmbeddedAdminModal({
         alert('✓ Nayi product live website par publish ho gayi!');
         handleCancelEdit();
       }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert('Save nahi hui — database error ki wajah se product update nahi hua. Dobara try karein. (' + message + ')');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleStockChange = async (product: ProductItem, delta: number) => {
+    const next = Math.max(0, (product.stockCount || 0) + delta);
+    try {
+      await onUpdateProduct({ ...product, stockCount: next });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert('Stock update nahi hui: ' + message);
     }
   };
 
@@ -937,6 +955,18 @@ function EmbeddedAdminModal({
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="e.g. 78000"
+                className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold text-slate-600 block mb-1">Stock Quantity</label>
+              <input
+                type="number"
+                min={0}
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+                placeholder="e.g. 5"
                 className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-sky-600"
               />
             </div>
@@ -1086,6 +1116,26 @@ function EmbeddedAdminModal({
                       <span className="text-sky-700 font-bold ml-2">Rs. {displayPrice}</span>
                     </div>
 
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span className="text-[10px] font-bold text-slate-500 mr-0.5">Stock: {p?.stockCount ?? 0}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleStockChange(p, -1)}
+                        aria-label={`Decrease stock for ${p?.name || 'item'}`}
+                        className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition"
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStockChange(p, 1)}
+                        aria-label={`Increase stock for ${p?.name || 'item'}`}
+                        className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition"
+                      >
+                        +
+                      </button>
+                    </div>
+
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         type="button"
@@ -1136,10 +1186,11 @@ export default function App() {
         if (!error && Array.isArray(data) && data.length > 0) {
           const cloudItems = data as ProductItem[];
           const cloudIds = new Set(cloudItems.map(item => item.id));
+          const visibleCloudItems = cloudItems.filter(item => !item.specs?.deleted);
           const remainingBase = BASE_INVENTORY.filter(
             baseItem => !cloudIds.has(baseItem.id) && !deletedIds.includes(baseItem.id)
           );
-          setProducts([...cloudItems, ...remainingBase]);
+          setProducts([...visibleCloudItems, ...remainingBase]);
         }
       } catch (err) {
         console.error('Cloud sync failed, showing base catalog:', err);
@@ -1221,28 +1272,51 @@ export default function App() {
       const { error } = await supabase.from('products').insert([newProd]);
       if (error) {
         alert('Cloud database save error: ' + error.message);
+        throw error;
       }
     }
   };
 
   const handleUpdateProduct = async (updatedProduct: ProductItem) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    if (supabase) {
-      const { error } = await supabase.from('products').upsert([updatedProduct]);
-      if (error) {
-        alert('Cloud database update error: ' + error.message);
+    if (!supabase) return;
+    const { id, ...fields } = updatedProduct;
+    const { data, error } = await supabase.from('products').update(fields).eq('id', id).select();
+    if (error) {
+      alert('Cloud database update error: ' + error.message);
+      throw error;
+    }
+    if (!data || data.length === 0) {
+      const { error: insertError } = await supabase.from('products').insert([updatedProduct]);
+      if (insertError) {
+        alert('Cloud database update error: ' + insertError.message);
+        throw insertError;
       }
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    setDeletedIds(prev => [...prev, id]);
-    setProducts(prev => prev.filter(p => p.id !== id));
-    if (supabase) {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      if (error) {
-        alert('Cloud delete error: ' + error.message);
+    if (!supabase) {
+      alert('Cloud configured nahi hai (.env keys check karein). Delete save nahi ho sakta.');
+      return;
+    }
+    const product = products.find(p => p.id === id);
+    if (!product) return;
+    try {
+      const { data, error } = await supabase.from('products').delete().eq('id', id).select();
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        // Base (code-only) product: no cloud row to delete, so save a tombstone
+        // row so the delete survives a reload. It is filtered out on sync.
+        const tombstone: ProductItem = { ...product, specs: { ...product.specs, deleted: true } };
+        const { error: tombError } = await supabase.from('products').insert([tombstone]);
+        if (tombError) throw tombError;
       }
+      setProducts(prev => prev.filter(p => p.id !== id));
+      setDeletedIds(prev => [...prev, id]);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      alert('Delete save nahi hui: ' + message);
     }
   };
 
@@ -1274,6 +1348,7 @@ export default function App() {
 
   const addToCart = (product: ProductItem) => {
     if (!product?.id) return;
+    if ((product.stockCount ?? 0) <= 0) return;
     setCart((prev) => ({ ...prev, [product.id]: (prev[product.id] || 0) + 1 }));
   };
 
@@ -1564,7 +1639,7 @@ export default function App() {
           <div className="overflow-hidden w-full relative mb-3">
             <div className="animate-marquee-left flex gap-3">
               {[...FEATURED_STREAM_LAPTOPS, ...FEATURED_STREAM_LAPTOPS].map((item, idx) => (
-                <div key={idx} className="h-24 w-52 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-2 sm:h-28 sm:w-56 flex items-center justify-center">
+                <div key={idx} className="h-28 w-72 shrink-0 overflow-hidden rounded-xl border border-slate-200 bg-slate-50/80 p-1 sm:h-32 sm:w-80 flex items-center justify-center">
                   <img 
                     src={item.image} 
                     alt={item.name} 
@@ -1683,8 +1758,8 @@ export default function App() {
                     <span className={wishlist.includes(p.id) ? 'text-rose-500' : 'text-slate-400'}>♥</span>
                   </button>
 
-                  <div onClick={() => openProductDetails(p)} className="relative aspect-4/3 w-full bg-slate-50 p-4 sm:p-6 flex items-center justify-center cursor-pointer">
-                    <span className="absolute left-2.5 top-2.5 bg-white px-2 py-0.5 text-[9px] sm:text-[10px] font-bold text-slate-600 border border-slate-200 rounded">
+                  <div onClick={() => openProductDetails(p)} className="relative aspect-4/3 w-full bg-slate-50 p-2 sm:p-3 flex items-center justify-center cursor-pointer">
+                    <span className="absolute left-2.5 top-2.5 bg-white px-2.5 py-1 text-[12px] sm:text-[13px] font-extrabold text-slate-700 border border-slate-200 rounded-lg shadow-xs">
                       {p.brand}
                     </span>
                     <img 
@@ -1706,7 +1781,11 @@ export default function App() {
                   <div className="flex flex-1 flex-col p-3 sm:p-4">
                     <div className="flex items-center justify-between text-[10px] sm:text-xs mb-1">
                       <span className="text-amber-500 font-medium">★ {p.rating} ({p.reviewsCount})</span>
-                      <span className="text-[10px] font-medium text-emerald-600">Stock: {p.stockCount}</span>
+                      {p.stockCount > 0 ? (
+                        <span className="text-[10px] font-bold text-emerald-600">✓ In Stock ({p.stockCount})</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-rose-600">Out of Stock</span>
+                      )}
                     </div>
 
                     <h3 onClick={() => openProductDetails(p)} className="font-semibold text-xs sm:text-sm text-slate-900 line-clamp-2 leading-snug cursor-pointer hover:text-sky-600 transition">
@@ -1936,9 +2015,14 @@ export default function App() {
             })()}
 
             <h2 className="text-base font-bold text-slate-900">{activeProduct.name}</h2>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <span className="text-lg font-bold text-slate-900">{formatPKR(activeProduct.pricePKR)}</span>
               <span className="text-[10px] font-bold bg-sky-50 text-sky-800 px-2 py-0.5 rounded">{activeProduct.condition}</span>
+              {activeProduct.stockCount > 0 ? (
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">✓ In Stock ({activeProduct.stockCount})</span>
+              ) : (
+                <span className="text-[10px] font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded">Out of Stock</span>
+              )}
             </div>
 
             <div className="flex gap-4 border-b border-slate-200 mt-4 text-xs font-semibold overflow-x-auto pb-1">
@@ -2041,9 +2125,10 @@ export default function App() {
             <div className="mt-4 pt-2 border-t border-slate-100 flex gap-2">
               <button
                 onClick={() => { addToCart(activeProduct); setActiveProduct(null); setIsCartOpen(true); }}
-                className="flex-1 bg-slate-900 text-white py-2.5 rounded-xl font-bold text-xs active:scale-95 transition"
+                disabled={activeProduct.stockCount === 0}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs active:scale-95 transition ${activeProduct.stockCount === 0 ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-slate-900 text-white'}`}
               >
-                Add to Cart • {formatPKR(activeProduct.pricePKR)}
+                {activeProduct.stockCount === 0 ? 'Out of Stock' : `Add to Cart • ${formatPKR(activeProduct.pricePKR)}`}
               </button>
 
               <a
